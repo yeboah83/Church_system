@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'member_list' %}">Members</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-8">
+        <div class="card-premium p-4 mb-4">
+            <h3 class="fw-bold mb-4"><i class="fa-solid fa-user-plus text-indigo me-2" style="color: var(--accent-color);"></i>{{ title }}</h3>
+            
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                    <div class="alert alert-danger mb-4" role="alert">
+                        <h6 class="fw-bold mb-1"><i class="fa-solid fa-circle-exclamation me-2"></i>Please correct the errors below:</h6>
+                        <ul class="mb-0 small">
+                            {% for field, errors in form.errors.items %}
+                                <li><strong>{{ field|title }}:</strong> {{ errors|join:", " }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Core Details Section -->
+                <h5 class="fw-semibold text-secondary mb-3 border-bottom pb-2">Personal Information</h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <label for="id_full_name" class="form-label fw-medium">Full Name</label>
+                        {{ form.full_name }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_gender" class="form-label fw-medium">Gender</label>
+                        {{ form.gender }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_date_of_birth" class="form-label fw-medium">Date of Birth</label>
+                        {{ form.date_of_birth }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_marital_status" class="form-label fw-medium">Marital Status</label>
+                        {{ form.marital_status }}
+                    </div>
+                </div>
+
+                <!-- Contact & Location Section -->
+                <h5 class="fw-semibold text-secondary mb-3 border-bottom pb-2">Contact & Location</h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-12">
+                        <label for="id_phone_number" class="form-label fw-medium">Phone Number</label>
+                        {{ form.phone_number }}
+                    </div>
+                    <div class="col-md-12">
+                        <label for="id_address" class="form-label fw-medium">Address</label>
+                        {{ form.address }}
+                    </div>
+                </div>
+
+                <!-- Church Settings Section -->
+                <h5 class="fw-semibold text-secondary mb-3 border-bottom pb-2">Church Details</h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="id_department" class="form-label fw-medium">Department</label>
+                        {{ form.department }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_cell_group" class="form-label fw-medium">Cell Group</label>
+                        {{ form.cell_group }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_date_joined" class="form-label fw-medium">Date Joined</label>
+                        {{ form.date_joined }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_status" class="form-label fw-medium">Membership Status</label>
+                        {{ form.status }}
+                    </div>
+                    
+                    <div class="col-md-6 d-flex align-items-center">
+                        <div class="form-check mt-3">
+                            {{ form.baptized }}
+                            <label class="form-check-label fw-medium ms-1" for="id_baptized">
+                                Is Baptized?
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="id_photo" class="form-label fw-medium">Profile Photo</label>
+                        {{ form.photo }}
+                        {% if member and member.photo %}
+                            <small class="text-muted d-block mt-1">Current photo: <a href="{{ member.photo.url }}" target="_blank">{{ member.photo.name }}</a></small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3 mt-4 border-top pt-3">
+                    <a href="{% url 'member_list' %}" class="btn btn-light border px-4">Cancel</a>
+                    <button type="submit" class="btn btn-premium px-5">Save Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

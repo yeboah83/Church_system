@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Total Members Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 d-flex align-items-center justify-content-between">
+            <div>
+                <span class="text-secondary small fw-semibold d-block mb-1">TOTAL MEMBERS</span>
+                <h2 class="fw-bold mb-0">{{ total_members }}</h2>
+            </div>
+            <div class="stat-icon-wrapper" style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent-color);">
+                <i class="fa-solid fa-users"></i>
+            </div>
+        </div>
+    </div>
+    <!-- Total Visitors Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 d-flex align-items-center justify-content-between">
+            <div>
+                <span class="text-secondary small fw-semibold d-block mb-1">TOTAL VISITORS</span>
+                <h2 class="fw-bold mb-0">{{ total_visitors }}</h2>
+            </div>
+            <div class="stat-icon-wrapper" style="background-color: rgba(168, 85, 247, 0.1); color: #a855f7;">
+                <i class="fa-solid fa-user-tag"></i>
+            </div>
+        </div>
+    </div>
+    <!-- Today's Attendance Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 d-flex align-items-center justify-content-between">
+            <div>
+                <span class="text-secondary small fw-semibold d-block mb-1">TODAY'S ATTENDANCE</span>
+                <h2 class="fw-bold mb-0">{{ today_attendance }}</h2>
+            </div>
+            <div class="stat-icon-wrapper" style="background-color: rgba(16, 185, 129, 0.1); color: var(--success-color);">
+                <i class="fa-solid fa-clipboard-user"></i>
+            </div>
+        </div>
+    </div>
+    <!-- Total Offerings Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 d-flex align-items-center justify-content-between">
+            <div>
+                <span class="text-secondary small fw-semibold d-block mb-1">OFFERINGS THIS MONTH</span>
+                <h2 class="fw-bold mb-0">GHS {{ monthly_income|floatformat:2 }}</h2>
+            </div>
+            <div class="stat-icon-wrapper" style="background-color: rgba(14, 165, 233, 0.1); color: #0ea5e9;">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Chart Section -->
+    <div class="col-12 col-lg-8">
+        <div class="card-premium p-4 h-100">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-chart-simple me-2 text-indigo" style="color: var(--accent-color);"></i>Attendance Trends (Sunday Service)</h5>
+            <div style="height: 300px; position: relative;">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Announcements Section -->
+    <div class="col-12 col-lg-4">
+        <div class="card-premium p-4 h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-bullhorn me-2 text-warning"></i>Announcements</h5>
+                {% if user.role in 'Super Admin Pastor Secretary' or user.is_superuser %}
+                <a href="{% url 'announcement_create' %}" class="btn btn-sm btn-outline-primary" style="font-size: 0.8rem; border-radius: 6px;">Publish</a>
+                {% endif %}
+            </div>
+            <div class="flex-grow-1 overflow-auto" style="max-height: 280px;">
+                {% if announcements %}
+                    {% for a in announcements %}
+                        <div class="p-3 bg-light rounded-3 mb-2.5" style="border-left: 4px solid var(--accent-color); margin-bottom: 10px;">
+                            <h6 class="fw-bold mb-1" style="font-size: 0.95rem;">{{ a.title }}</h6>
+                            <p class="text-secondary small mb-1">{{ a.content|truncatewords:20 }}</p>
+                            <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem;">
+                                <span>By: {{ a.author.username }}</span>
+                                <span>{{ a.date_posted|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fa-solid fa-box-open fs-2 mb-2"></i>
+                        <p class="mb-0">No active announcements</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Registrations -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card-premium p-4 h-100">
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-user-plus me-2 text-primary"></i>Recent Registrations</h5>
+            <div class="list-group list-group-flush">
+                {% if recent_registrations %}
+                    {% for m in recent_registrations %}
+                        <a href="{% url 'member_profile' pk=m.pk %}" class="list-group-item list-group-item-action px-0 d-flex align-items-center py-2.5">
+                            {% if m.photo %}
+                                <img src="{{ m.photo.url }}" class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; color: var(--accent-color);">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.9rem;">{{ m.full_name }}</h6>
+                                <span class="text-muted small" style="font-size: 0.75rem;">ID: {{ m.membership_id }}</span>
+                            </div>
+                            <span class="text-muted small">{{ m.date_joined|date:"M d" }}</span>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">No recent members</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Birthdays -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card-premium p-4 h-100">
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-cake-candles me-2 text-danger"></i>Upcoming Birthdays</h5>
+            <div class="list-group list-group-flush">
+                {% if birthdays %}
+                    {% for b in birthdays %}
+                        <div class="list-group-item px-0 d-flex align-items-center py-2.5">
+                            <div class="rounded-circle bg-danger bg-opacity-10 d-flex align-items-center justify-content-center me-3 text-danger" style="width: 40px; height: 40px;">
+                                <i class="fa-solid fa-cake-candles"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.9rem;">{{ b.member.full_name }}</h6>
+                                <span class="text-muted small" style="font-size: 0.75rem;">Cell: {{ b.member.cell_group|default:"No Cell" }}</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-danger rounded-pill" style="font-size: 0.7rem;">{{ b.date|date:"M d" }}</span>
+                                <small class="text-muted d-block" style="font-size: 0.65rem;">
+                                    {% if b.days_until == 0 %}
+                                        Today!
+                                    {% else %}
+                                        In {{ b.days_until }} days
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">No birthdays this week</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="col-12 col-md-12 col-lg-4">
+        <div class="card-premium p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-calendar-week me-2 text-success"></i>Upcoming Events</h5>
+                <a href="{% url 'event_list' %}" class="text-indigo text-decoration-none small">View all</a>
+            </div>
+            <div class="list-group list-group-flush">
+                {% if upcoming_events %}
+                    {% for e in upcoming_events %}
+                        <div class="list-group-item px-0 py-2.5 border-bottom">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 fw-bold" style="font-size: 0.9rem;">{{ e.event_name }}</h6>
+                                <small class="text-success fw-semibold" style="font-size: 0.8rem;">{{ e.date|date:"M d" }}</small>
+                            </div>
+                            <p class="text-secondary small mb-1">{{ e.description|truncatewords:12 }}</p>
+                            <small class="text-muted" style="font-size: 0.75rem;"><i class="fa-solid fa-location-dot me-1"></i>{{ e.venue }} | <i class="fa-regular fa-clock me-1"></i>{{ e.time }}</small>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">No upcoming events scheduled</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load chart data
+    const labels = {{ chart_labels|safe }};
+    const dataPoints = {{ chart_data|safe }};
+    
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    
+    // Gradient accent color
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.01)');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Present Members & Visitors',
+                data: dataPoints,
+                backgroundColor: gradient,
+                borderColor: '#6366f1',
+                borderWidth: 3,
+                pointBackgroundColor: '#6366f1',
+                pointBorderColor: '#fff',
+                pointHoverRadius: 6,
+                tension: 0.35,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#f1f5f9'
+                    },
+                    ticks: {
+                        stepSize: 2,
+                        color: '#94a3b8'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#94a3b8'
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

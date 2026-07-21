@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}Finance - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Finance</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0">Financial Accounting</h3>
+        <p class="text-secondary small mb-0">Track church tithes, offerings, donations, and expenses.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'finance_transaction_create' %}" class="btn btn-premium">
+            <i class="fa-solid fa-plus-circle me-1"></i> Log Transaction
+        </a>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="financeExport" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-download me-1"></i> Export Statement
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="financeExport">
+                <li><a class="dropdown-item" href="{% url 'export_finance_report' %}?format=excel"><i class="fa-regular fa-file-excel text-success me-2"></i> Excel Spreadsheet</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_finance_report' %}?format=pdf"><i class="fa-regular fa-file-pdf text-danger me-2"></i> PDF Statement</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Summary Cards -->
+<div class="row g-4 mb-4">
+    <!-- Income Card -->
+    <div class="col-12 col-md-4">
+        <div class="card-premium p-4 border-start border-success border-4">
+            <span class="text-secondary small fw-semibold d-block mb-1">TOTAL INCOME</span>
+            <h2 class="fw-bold mb-0 text-success">GHS {{ total_income|floatformat:2 }}</h2>
+        </div>
+    </div>
+    <!-- Expenses Card -->
+    <div class="col-12 col-md-4">
+        <div class="card-premium p-4 border-start border-danger border-4">
+            <span class="text-secondary small fw-semibold d-block mb-1">TOTAL EXPENSES</span>
+            <h2 class="fw-bold mb-0 text-danger">GHS {{ total_expense|floatformat:2 }}</h2>
+        </div>
+    </div>
+    <!-- Balance Card -->
+    <div class="col-12 col-md-4">
+        <div class="card-premium p-4 border-start border-primary border-4">
+            <span class="text-secondary small fw-semibold d-block mb-1">NET BALANCE</span>
+            <h2 class="fw-bold mb-0 text-primary">GHS {{ net_balance|floatformat:2 }}</h2>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-4">
+    <!-- Income Breakdown (Pie) -->
+    <div class="col-12 col-md-6">
+        <div class="card-premium p-4 h-100">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-chart-pie me-2 text-success"></i>Income Channels Breakdown</h5>
+            <div style="height: 250px; position: relative;">
+                <canvas id="incomePieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Expense Breakdown (Pie) -->
+    <div class="col-12 col-md-6">
+        <div class="card-premium p-4 h-100">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-chart-pie me-2 text-danger"></i>Expense Category Breakdown</h5>
+            <div style="height: 250px; position: relative;">
+                <canvas id="expensePieChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions Table -->
+<div class="card-premium overflow-hidden">
+    <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0"><i class="fa-solid fa-receipt me-2 text-indigo" style="color: var(--accent-color);"></i>Recent Ledger Entries</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col" class="ps-4">Date</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Amount (GHS)</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Recorded By</th>
+                    <th scope="col" class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if transactions %}
+                    {% for t in transactions %}
+                        <tr>
+                            <td class="ps-4 text-secondary small font-monospace">{{ t.date|date:"Y-m-d" }}</td>
+                            <td>
+                                {% if t.transaction_type == 'Income' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success px-2 py-1">Income</span>
+                                {% else %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger px-2 py-1">Expense</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ t.category }}</strong></td>
+                            <td class="fw-bold {% if t.transaction_type == 'Income' %}text-success{% else %}text-danger{% endif %}">
+                                {% if t.transaction_type == 'Income' %}+{% else %}-{% endif %} {{ t.amount|floatformat:2 }}
+                            </td>
+                            <td class="text-secondary text-sm">{{ t.description|default:"-" }}</td>
+                            <td class="text-muted small">{{ t.recorded_by.username|default:"System" }}</td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group gap-1">
+                                    <a href="{% url 'finance_transaction_update' pk=t.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit Entry" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </a>
+                                    {% if user.role == 'Super Admin' or user.is_superuser %}
+                                    <a href="{% url 'finance_transaction_delete' pk=t.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Entry" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-folder-open fs-2 mb-2"></i>
+                            <p class="mb-0">No transactions recorded.</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Income breakdown pie chart
+    const incomeLabels = {{ income_categories|safe }};
+    const incomeData = {{ income_amounts|safe }};
+    
+    new Chart(document.getElementById('incomePieChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: incomeLabels,
+            datasets: [{
+                data: incomeData,
+                backgroundColor: ['#10b981', '#34d399', '#059669', '#6ee7b7', '#047857', '#a7f3d0'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: { family: 'Outfit', size: 12 }
+                    }
+                }
+            }
+        }
+    });
+
+    // Expense breakdown pie chart
+    const expenseLabels = {{ expense_categories|safe }};
+    const expenseData = {{ expense_amounts|safe }};
+    
+    new Chart(document.getElementById('expensePieChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: expenseLabels,
+            datasets: [{
+                data: expenseData,
+                backgroundColor: ['#ef4444', '#f87171', '#dc2626', '#fca5a5', '#b91c1c', '#fecaca'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: { family: 'Outfit', size: 12 }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

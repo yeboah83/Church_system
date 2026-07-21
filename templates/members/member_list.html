@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Members - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Members</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0">Members Directory</h3>
+        <p class="text-secondary small mb-0">Manage church memberships, credentials, and demographics.</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+        <a href="{% url 'member_create' %}" class="btn btn-premium">
+            <i class="fa-solid fa-user-plus me-2"></i> Register Member
+        </a>
+        {% endif %}
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-download me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
+                <li><a class="dropdown-content dropdown-item" href="{% url 'export_members_excel' %}"><i class="fa-regular fa-file-excel me-2 text-success"></i> Excel Spreadsheet</a></li>
+                <li><a class="dropdown-content dropdown-item" href="{% url 'export_members_pdf' %}"><i class="fa-regular fa-file-pdf me-2 text-danger"></i> PDF Directory</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filters -->
+<div class="card-premium p-4 mb-4">
+    <form method="GET" class="row g-3">
+        <div class="col-12 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" name="q" value="{{ query }}" placeholder="Search by name, ID, cell group, phone...">
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select" name="department">
+                <option value="">All Departments</option>
+                {% for d in departments %}
+                <option value="{{ d.pk }}" {% if dept_filter == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select class="form-select" name="status">
+                <option value="">All Statuses</option>
+                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Members Table -->
+<div class="card-premium overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col" class="ps-4">Photo</th>
+                    <th scope="col">ID / Name</th>
+                    <th scope="col">Gender</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Department</th>
+                    <th scope="col">Cell Group</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if members %}
+                    {% for m in members %}
+                        <tr>
+                            <td class="ps-4">
+                                {% if m.photo %}
+                                    <img src="{{ m.photo.url }}" class="rounded-3" style="width: 44px; height: 44px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-3 bg-light d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; color: var(--accent-color);">
+                                        <i class="fa-solid fa-user fs-5"></i>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'member_profile' pk=m.pk %}" class="fw-bold text-decoration-none d-block text-dark">{{ m.full_name }}</a>
+                                <small class="text-muted">{{ m.membership_id }}</small>
+                            </td>
+                            <td>{{ m.gender }}</td>
+                            <td>{{ m.phone_number }}</td>
+                            <td><span class="badge bg-light text-secondary border">{{ m.department.name|default:"General" }}</span></td>
+                            <td>{{ m.cell_group|default:"-" }}</td>
+                            <td>
+                                {% if m.status == 'Active' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success px-2.5 py-1.5" style="font-size: 0.75rem;">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger px-2.5 py-1.5" style="font-size: 0.75rem;">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group gap-1">
+                                    <a href="{% url 'member_profile' pk=m.pk %}" class="btn btn-sm btn-outline-secondary" title="View Profile" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-eye"></i>
+                                    </a>
+                                    {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+                                    <a href="{% url 'member_update' pk=m.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit Member" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'member_card_print' pk=m.pk %}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print ID Card" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-id-card"></i>
+                                    </a>
+                                    {% if user.role in 'Super Admin Pastor' or user.is_superuser %}
+                                    <a href="{% url 'member_delete' pk=m.pk %}" class="btn btn-sm btn-outline-danger" title="Delete" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-folder-open fs-2 mb-2"></i>
+                            <p class="mb-0">No matching members found.</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

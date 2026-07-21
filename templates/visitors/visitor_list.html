@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Visitors - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Visitors</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0">Visitor Management</h3>
+        <p class="text-secondary small mb-0">Record and follow up on first-time visitors and guests.</p>
+    </div>
+    {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+    <a href="{% url 'visitor_create' %}" class="btn btn-premium">
+        <i class="fa-solid fa-user-plus me-2"></i> Register Visitor
+    </a>
+    {% endif %}
+</div>
+
+<!-- Search Bar -->
+<div class="card-premium p-4 mb-4">
+    <form method="GET" class="row g-3">
+        <div class="col-12 col-md-10">
+            <div class="input-group">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" name="q" value="{{ query }}" placeholder="Search visitors by name, ID, phone, invited by...">
+            </div>
+        </div>
+        <div class="col-12 col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Visitors Table -->
+<div class="card-premium overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col" class="ps-4">ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Residential Address</th>
+                    <th scope="col">Invited By</th>
+                    <th scope="col">First Visit Date</th>
+                    <th scope="col" class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if visitors %}
+                    {% for v in visitors %}
+                        <tr>
+                            <td class="ps-4 text-secondary small fw-medium">{{ v.visitor_id }}</td>
+                            <td><strong class="text-dark">{{ v.name }}</strong></td>
+                            <td>{{ v.phone }}</td>
+                            <td>{{ v.address }}</td>
+                            <td>
+                                {% if v.invited_by %}
+                                    <span class="badge bg-light text-secondary border">{{ v.invited_by }}</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ v.first_visit_date|date:"M d, Y" }}</td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group gap-1">
+                                    {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+                                    <a href="{% url 'visitor_update' pk=v.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit Visitor" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if user.role == 'Super Admin' or user.is_superuser %}
+                                    <a href="{% url 'visitor_delete' pk=v.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Visitor" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-folder-open fs-2 mb-2"></i>
+                            <p class="mb-0">No visitors logged.</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

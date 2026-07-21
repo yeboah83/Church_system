@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}Log Attendance - {{ session.service_type }} - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'attendance_list' %}">Attendance</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ session.date }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0">{{ session.service_type }} Log</h3>
+        <p class="text-secondary small mb-0">Date: <strong>{{ session.date|date:"F d, Y" }}</strong> | Theme/Notes: {{ session.description|default:"-" }}</p>
+        {% if dept_led %}
+            <span class="badge bg-indigo mt-1" style="background-color: var(--accent-color);">Filtering: {{ dept_led.name }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Present Count Card -->
+    <div class="col-6 col-md-3">
+        <div class="card-premium p-3 text-center border-start border-success border-4">
+            <span class="text-secondary small fw-semibold d-block mb-1">PRESENT</span>
+            <h3 class="fw-bold mb-0 text-success">{{ total_present }}</h3>
+        </div>
+    </div>
+    <!-- Absent Count Card -->
+    <div class="col-6 col-md-3">
+        <div class="card-premium p-3 text-center border-start border-danger border-4">
+            <span class="text-secondary small fw-semibold d-block mb-1">ABSENT</span>
+            <h3 class="fw-bold mb-0 text-danger">{{ total_absent }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="card-premium p-4">
+    <form method="POST">
+        {% csrf_token %}
+        
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-4" id="attendanceTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-semibold" id="members-tab" data-bs-toggle="tab" data-bs-target="#members-pane" type="button" role="tab" aria-controls="members-pane" aria-selected="true">
+                    <i class="fa-solid fa-users me-2"></i>Members Directory
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-semibold" id="visitors-tab" data-bs-toggle="tab" data-bs-target="#visitors-pane" type="button" role="tab" aria-controls="visitors-pane" aria-selected="false">
+                    <i class="fa-solid fa-user-tag me-2"></i>Visitors / Guests
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="attendanceTabsContent">
+            <!-- Members Pane -->
+            <div class="tab-pane fade show active" id="members-pane" role="tabpanel" aria-labelledby="members-tab">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="input-group style-search w-50">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" id="memberSearch" class="form-control border-start-0 ps-0" placeholder="Quick search members by name...">
+                    </div>
+                    {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+                    <div class="text-end">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="checkAllMembers(true)">Check All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="checkAllMembers(false)">Clear All</button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th scope="col" style="width: 60px;">Record</th>
+                                <th scope="col">Member ID</th>
+                                <th scope="col">Full Name</th>
+                                <th scope="col">Department</th>
+                                <th scope="col">Cell Group</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if member_records %}
+                                {% for r in member_records %}
+                                    <tr class="member-row" data-name="{{ r.member.full_name }}">
+                                        <td>
+                                            <div class="form-check fs-5">
+                                                <input class="form-check-input member-checkbox" type="checkbox" name="members_present" value="{{ r.member.pk }}" id="m_{{ r.member.pk }}" {% if r.status == 'Present' %}checked{% endif %} {% if user.role not in 'Super Admin Secretary' and not user.is_superuser %}disabled{% endif %}>
+                                            </div>
+                                        </td>
+                                        <td class="font-monospace text-secondary">{{ r.member.membership_id }}</td>
+                                        <td>
+                                            <label class="form-check-label fw-bold text-dark d-block" for="m_{{ r.member.pk }}">{{ r.member.full_name }}</label>
+                                        </td>
+                                        <td><span class="badge bg-light text-secondary border">{{ r.member.department.name|default:"General" }}</span></td>
+                                        <td>{{ r.member.cell_group|default:"-" }}</td>
+                                        <td>
+                                            {% if r.status == 'Present' %}
+                                                <span class="badge bg-success bg-opacity-10 text-success">Present</span>
+                                            {% else %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger">Absent</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No members available.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Visitors Pane -->
+            <div class="tab-pane fade" id="visitors-pane" role="tabpanel" aria-labelledby="visitors-tab">
+                {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+                <div class="bg-light p-3 rounded-3 mb-4">
+                    <h6 class="fw-bold mb-2">Record Registered Visitor Present Today:</h6>
+                    <div class="row g-2">
+                        <div class="col-8 col-sm-9">
+                            <select id="visitorSelector" class="form-select">
+                                <option value="">Select a registered visitor...</option>
+                                {% for v in available_visitors %}
+                                <option value="{{ v.pk }}">{{ v.name }} (ID: {{ v.visitor_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4 col-sm-3">
+                            <button type="button" class="btn btn-outline-primary w-100" onclick="addVisitorRow()">
+                                <i class="fa-solid fa-plus me-1"></i> Add Guest
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="visitorsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 60px;">Present</th>
+                                <th scope="col">Visitor ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Phone</th>
+                                <th scope="col">Invited By</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if visitor_records %}
+                                {% for r in visitor_records %}
+                                    <tr class="visitor-row" id="vis_row_{{ r.visitor.pk }}">
+                                        <td>
+                                            <div class="form-check fs-5">
+                                                <input class="form-check-input" type="checkbox" name="visitors_present" value="{{ r.visitor.pk }}" id="v_{{ r.visitor.pk }}" checked {% if user.role not in 'Super Admin Secretary' and not user.is_superuser %}disabled{% endif %}>
+                                            </div>
+                                        </td>
+                                        <td class="font-monospace text-secondary">{{ r.visitor.visitor_id }}</td>
+                                        <td><label class="form-check-label fw-bold text-dark" for="v_{{ r.visitor.pk }}">{{ r.visitor.name }}</label></td>
+                                        <td>{{ r.visitor.phone }}</td>
+                                        <td><span class="badge bg-light text-secondary border">{{ r.visitor.invited_by|default:"Walk-in" }}</span></td>
+                                        <td><span class="badge bg-success bg-opacity-10 text-success">Present</span></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr id="noVisitorsRow">
+                                    <td colspan="6" class="text-center py-4 text-muted">No visitors logged for this session. Add using the dropdown above.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if user.role in 'Super Admin Secretary' or user.is_superuser %}
+        <div class="d-flex justify-content-end gap-3 mt-4 border-top pt-3">
+            <a href="{% url 'attendance_list' %}" class="btn btn-light border px-4">Back</a>
+            <button type="submit" class="btn btn-premium px-5">Save Attendance</button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Client-side search for members
+    document.getElementById('memberSearch').addEventListener('keyup', function() {
+        let q = this.value.toLowerCase();
+        let rows = document.querySelectorAll('.member-row');
+        rows.forEach(row => {
+            let name = row.getAttribute('data-name').toLowerCase();
+            row.style.display = name.includes(q) ? '' : 'none';
+        });
+    });
+
+    // Toggle check/uncheck all
+    function checkAllMembers(check) {
+        let checkboxes = document.querySelectorAll('.member-checkbox');
+        checkboxes.forEach(cb => {
+            if(!cb.disabled) cb.checked = check;
+        });
+    }
+
+    // Dynamic addition of visitor row in HTML
+    function addVisitorRow() {
+        const selector = document.getElementById('visitorSelector');
+        const selectedVal = selector.value;
+        const selectedText = selector.options[selector.selectedIndex].text;
+        
+        if (!selectedVal) return;
+
+        // Check if already in list
+        if (document.getElementById('v_' + selectedVal)) {
+            alert('This visitor is already in the list.');
+            return;
+        }
+
+        // Hide "no visitors" row
+        const noVisRow = document.getElementById('noVisitorsRow');
+        if (noVisRow) noVisRow.style.display = 'none';
+
+        const tableBody = document.querySelector('#visitorsTable tbody');
+        
+        // Split text for formatting
+        const regex = /(.+) \(ID: (.+)\)/;
+        const match = selectedText.match(regex);
+        const name = match ? match[1] : selectedText;
+        const id = match ? match[2] : selectedVal;
+
+        const tr = document.createElement('tr');
+        tr.id = 'vis_row_' + selectedVal;
+        tr.innerHTML = `
+            <td>
+                <div class="form-check fs-5">
+                    <input class="form-check-input" type="checkbox" name="visitors_present" value="${selectedVal}" id="v_${selectedVal}" checked>
+                </div>
+            </td>
+            <td class="font-monospace text-secondary">${id}</td>
+            <td><label class="form-check-label fw-bold text-dark" for="v_${selectedVal}">${name}</label></td>
+            <td>-</td>
+            <td><span class="badge bg-light text-secondary border">Added</span></td>
+            <td><span class="badge bg-success bg-opacity-10 text-success">Present</span></td>
+        `;
+        
+        tableBody.appendChild(tr);
+        selector.value = '';
+    }
+</script>
+{% endblock %}

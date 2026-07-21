@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirm Delete - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active" aria-current="page">Confirm Delete</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6 col-lg-5 text-center mt-5">
+        <div class="card-premium p-5 shadow-lg border border-danger border-opacity-10">
+            <span class="d-inline-block bg-danger bg-opacity-10 text-danger p-3 rounded-circle mb-4">
+                <i class="fa-solid fa-circle-exclamation fs-1"></i>
+            </span>
+            <h3 class="fw-bold mb-2">Delete {{ type }}?</h3>
+            <p class="text-secondary mb-4">Are you sure you want to permanently delete <strong>{{ object }}</strong>? This action is irreversible.</p>
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url cancel_url %}" class="btn btn-light px-4 py-2 border">Cancel</a>
+                    <button type="submit" class="btn btn-danger px-4 py-2">Delete Permanently</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Sermons - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Sermons</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0">Sermon Archive</h3>
+        <p class="text-secondary small mb-0">Browse and search past sermons, scriptures, and sermon notes.</p>
+    </div>
+    {% if user.role in 'Super Admin Pastor' or user.is_superuser %}
+    <a href="{% url 'sermon_create' %}" class="btn btn-premium">
+        <i class="fa-solid fa-plus-circle me-1"></i> Add Sermon
+    </a>
+    {% endif %}
+</div>
+
+<!-- Search Bar -->
+<div class="card-premium p-4 mb-4">
+    <form method="GET" class="row g-3">
+        <div class="col-12 col-md-10">
+            <div class="input-group">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" name="q" value="{{ query }}" placeholder="Search by title, speaker, scripture, notes content...">
+            </div>
+        </div>
+        <div class="col-12 col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100"><i class="fa-solid fa-filter me-1"></i> Search</button>
+        </div>
+    </form>
+</div>
+
+<!-- Sermons List -->
+<div class="row g-4">
+    {% if sermons %}
+        {% for s in sermons %}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card-premium p-4 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between text-muted small mb-2.5" style="font-size: 0.8rem;">
+                            <span><i class="fa-solid fa-calendar me-1"></i> {{ s.date|date:"M d, Y" }}</span>
+                            <span class="badge bg-indigo text-white" style="background-color: var(--accent-color);">{{ s.scripture }}</span>
+                        </div>
+                        <h5 class="fw-bold mb-1 text-dark">{{ s.title }}</h5>
+                        <p class="text-secondary small mb-3">Speaker: <strong>{{ s.speaker }}</strong></p>
+                        
+                        <div class="bg-light p-3 rounded-3 mb-3 text-secondary" style="font-size: 0.85rem; max-height: 120px; overflow-y: auto; white-space: pre-wrap;">
+                            {{ s.notes }}
+                        </div>
+                    </div>
+                    
+                    {% if user.role in 'Super Admin Pastor' or user.is_superuser %}
+                    <div class="d-flex justify-content-end gap-2 border-top pt-2.5 mt-2">
+                        <a href="{% url 'sermon_update' pk=s.pk %}" class="btn btn-sm btn-outline-secondary" style="border-radius: 6px;">
+                            <i class="fa-regular fa-pen-to-square me-1"></i> Edit
+                        </a>
+                        {% if user.role == 'Super Admin' or user.is_superuser %}
+                        <a href="{% url 'sermon_delete' pk=s.pk %}" class="btn btn-sm btn-outline-danger" style="border-radius: 6px;">
+                            <i class="fa-regular fa-trash-can me-1"></i> Delete
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12 text-center py-5 text-muted">
+            <i class="fa-regular fa-folder-open fs-2 mb-2"></i>
+            <p class="mb-0">No sermons found in archive.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

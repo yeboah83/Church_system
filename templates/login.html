@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Church Management System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    {% load static %}
+    <link href="{% static 'css/theme.css' %}" rel="stylesheet">
+</head>
+<body class="login-bg">
+
+    <div class="login-card text-center">
+        <div class="mb-4">
+            <span class="d-inline-block bg-indigo bg-opacity-10 text-indigo p-3 rounded-circle mb-3" style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent-color);">
+                <i class="fa-solid fa-church fs-1"></i>
+            </span>
+            <h3 class="fw-bold mb-1">Church Portal</h3>
+            <p class="text-secondary text-sm">Sign in to manage your congregation</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger py-2 px-3 text-start text-sm mb-3" role="alert">
+                    <i class="fa-solid fa-circle-exclamation me-2"></i> {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-3 text-start">
+                <label for="username" class="form-label text-secondary fs-6 small fw-semibold">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary border-opacity-20 text-secondary"><i class="fa-solid fa-user"></i></span>
+                    <input type="text" class="form-control" id="username" name="username" required placeholder="Enter username">
+                </div>
+            </div>
+            
+            <div class="mb-4 text-start">
+                <label for="password" class="form-label text-secondary fs-6 small fw-semibold">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary border-opacity-20 text-secondary"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" class="form-control" id="password" name="password" required placeholder="Enter password">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-premium w-100 py-2.5 fw-semibold mb-2">
+                <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In
+            </button>
+        </form>
+
+        <div class="mt-4 pt-3 border-top border-secondary border-opacity-10">
+            <p class="small text-secondary mb-0">Demo credentials:<br>
+            <strong>Pastor:</strong> pastor / pastor123<br>
+            <strong>Secretary:</strong> secretary / secretary123<br>
+            <strong>Finance:</strong> finance / finance123</p>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

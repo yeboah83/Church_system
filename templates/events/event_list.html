@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Events - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Events</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0">Events & Calendars</h3>
+        <p class="text-secondary small mb-0">Track church meetings, conferences, out-stations, and community services.</p>
+    </div>
+    {% if user.role in 'Super Admin Pastor Secretary' or user.is_superuser %}
+    <a href="{% url 'event_create' %}" class="btn btn-premium">
+        <i class="fa-solid fa-plus-circle me-1"></i> Add Event
+    </a>
+    {% endif %}
+</div>
+
+<!-- Events Table -->
+<div class="card-premium overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col" class="ps-4">Date / Time</th>
+                    <th scope="col">Event Name</th>
+                    <th scope="col">Event Type</th>
+                    <th scope="col">Venue</th>
+                    <th scope="col">Organizer</th>
+                    <th scope="col">Description</th>
+                    {% if user.role in 'Super Admin Pastor Secretary' or user.is_superuser %}
+                    <th scope="col" class="text-end pe-4">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if events %}
+                    {% for e in events %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="fw-bold text-dark d-block">{{ e.date|date:"M d, Y" }}</span>
+                                <small class="text-muted"><i class="fa-regular fa-clock me-1"></i>{{ e.time }}</small>
+                            </td>
+                            <td><strong class="text-indigo" style="color: var(--accent-color);">{{ e.event_name }}</strong></td>
+                            <td><span class="badge bg-light text-secondary border">{{ e.event_type }}</span></td>
+                            <td>{{ e.venue }}</td>
+                            <td>{{ e.organizer }}</td>
+                            <td class="text-secondary text-sm" style="max-width: 250px;">{{ e.description|truncatewords:15|default:"-" }}</td>
+                            {% if user.role in 'Super Admin Pastor Secretary' or user.is_superuser %}
+                            <td class="text-end pe-4">
+                                <div class="btn-group gap-1">
+                                    <a href="{% url 'event_update' pk=e.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit Event" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </a>
+                                    {% if user.role == 'Super Admin' or user.is_superuser %}
+                                    <a href="{% url 'event_delete' pk=e.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Event" style="border-radius: 6px;">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-calendar-times fs-2 mb-2"></i>
+                            <p class="mb-0">No church events scheduled.</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
