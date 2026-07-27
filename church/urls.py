@@ -62,4 +62,12 @@ urlpatterns = [
     path('announcements/add/', views.announcement_create, name='announcement_create'),
     path('announcements/<int:pk>/edit/', views.announcement_update, name='announcement_update'),
     path('announcements/<int:pk>/delete/', views.announcement_delete, name='announcement_delete'),
+
+    # User Management (Admin only)
+    path('users/', views.user_list, name='user_list'),
+    path('users/add/', views.user_create, name='user_create'),
+    path('users/<int:pk>/edit/', views.user_update, name='user_update'),
+    path('users/<int:pk>/password/', views.user_change_password, name='user_change_password'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
 ]
+

@@ -41,7 +41,7 @@
                     </a>
                 </li>
                 
-                {% if user.role in 'Super Admin Pastor Secretary' or user.is_superuser %}
+                {% if user.role == 'Super Admin' or user.role == 'Pastor' or user.role == 'Secretary' or user.is_superuser %}
                 <li class="{% if 'member' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'member_list' %}">
                         <i class="fa-solid fa-users"></i> Members
@@ -54,11 +54,13 @@
                 </li>
                 {% endif %}
 
+                {% if user.role == 'Super Admin' or user.role == 'Pastor' or user.role == 'Secretary' or user.role == 'Department Leader' or user.is_superuser %}
                 <li class="{% if 'attendance' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'attendance_list' %}">
                         <i class="fa-solid fa-clipboard-user"></i> Attendance
                     </a>
                 </li>
+                {% endif %}
 
                 <li class="{% if 'department' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'department_list' %}">
@@ -66,7 +68,7 @@
                     </a>
                 </li>
 
-                {% if user.role in 'Super Admin Finance Officer' or user.is_superuser %}
+                {% if user.role == 'Super Admin' or user.role == 'Finance Officer' or user.is_superuser %}
                 <li class="{% if 'finance' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'finance_dashboard' %}">
                         <i class="fa-solid fa-wallet"></i> Finance
@@ -91,6 +93,14 @@
                         <i class="fa-solid fa-bullhorn"></i> Announcements
                     </a>
                 </li>
+
+                {% if user.role == 'Super Admin' or user.is_superuser %}
+                <li class="{% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'user_list' %}">
+                        <i class="fa-solid fa-users-gear"></i> User Management
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </nav>
 

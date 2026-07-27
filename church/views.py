@@ -23,7 +23,8 @@ from .models import (
 )
 from .forms import (
     MemberForm, VisitorForm, AttendanceSessionForm, FinanceTransactionForm,
-    SermonForm, EventForm, AnnouncementForm, DepartmentForm
+    SermonForm, EventForm, AnnouncementForm, DepartmentForm,
+    CustomUserCreationForm, CustomUserUpdateForm, AdminPasswordChangeForm
 )
 from .decorators import role_required
 
@@ -983,3 +984,87 @@ def export_finance_report(request):
         return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': 'attachment; filename="financial_statement.pdf"'})
 
     raise Http404("Invalid format requested.")
+
+
+# --- USER MANAGEMENT ---
+
+@login_required
+@role_required(['Super Admin'])
+def user_list(request):
+    users = CustomUser.objects.all().order_by('username')
+    return render(request, 'users/user_list.html', {'users': users})
+
+
+@login_required
+@role_required(['Super Admin'])
+def user_create(request):
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f"User '{user.username}' created successfully!")
+            return redirect('user_list')
+    else:
+        form = CustomUserCreationForm()
+    return render(request, 'users/user_form.html', {'form': form, 'title': 'Add New User'})
+
+
+@login_required
+@role_required(['Super Admin'])
+def user_update(request, pk):
+    target_user = get_object_or_404(CustomUser, pk=pk)
+    if request.method == 'POST':
+        form = CustomUserUpdateForm(request.POST, instance=target_user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"User '{target_user.username}' updated successfully.")
+            return redirect('user_list')
+    else:
+        form = CustomUserUpdateForm(instance=target_user)
+    return render(request, 'users/user_form.html', {
+        'form': form,
+        'title': f'Edit User: {target_user.username}',
+        'target_user': target_user
+    })
+
+
+@login_required
+@role_required(['Super Admin'])
+def user_change_password(request, pk):
+    target_user = get_object_or_404(CustomUser, pk=pk)
+    if request.method == 'POST':
+        form = AdminPasswordChangeForm(request.POST)
+        if form.is_valid():
+            new_pass = form.cleaned_data['new_password']
+            target_user.set_password(new_pass)
+            target_user.save()
+            messages.success(request, f"Password for '{target_user.username}' changed successfully.")
+            return redirect('user_list')
+    else:
+        form = AdminPasswordChangeForm()
+    return render(request, 'users/change_password.html', {
+        'form': form,
+        'target_user': target_user
+    })
+
+
+@login_required
+@role_required(['Super Admin'])
+def user_delete(request, pk):
+    target_user = get_object_or_404(CustomUser, pk=pk)
+    if target_user == request.user:
+        messages.error(request, "You cannot delete your own admin account!")
+        return redirect('user_list')
+    
+    if request.method == 'POST':
+        username = target_user.username
+        target_user.delete()
+        messages.success(request, f"User '{username}' has been deleted.")
+        return redirect('user_list')
+    
+    return render(request, 'confirm_delete.html', {
+        'object': target_user,
+        'type': 'User',
+        'cancel_url': 'user_list'
+    })
+

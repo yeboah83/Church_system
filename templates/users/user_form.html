@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'user_list' %}">User Management</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card-premium p-4 p-md-5">
+            <div class="d-flex align-items-center mb-4">
+                <div class="stat-icon-wrapper me-3" style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent-color);">
+                    <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div>
+                    <h3 class="fw-bold mb-0">{{ title }}</h3>
+                    <p class="text-secondary small mb-0">Fill in the account details below.</p>
+                </div>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2 px-3 mb-3">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0 small"><i class="fa-solid fa-circle-exclamation me-1"></i> {{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold text-secondary small">Username *</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold text-secondary small">Email Address</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.first_name.id_for_label }}" class="form-label fw-semibold text-secondary small">First Name</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.last_name.id_for_label }}" class="form-label fw-semibold text-secondary small">Last Name</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.role.id_for_label }}" class="form-label fw-semibold text-secondary small">System Role *</label>
+                        {{ form.role }}
+                        {% if form.role.errors %}
+                            <div class="text-danger small mt-1">{{ form.role.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.phone_number.id_for_label }}" class="form-label fw-semibold text-secondary small">Phone Number</label>
+                        {{ form.phone_number }}
+                        {% if form.phone_number.errors %}
+                            <div class="text-danger small mt-1">{{ form.phone_number.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if form.password %}
+                <div class="row g-3 mb-3 border-top pt-3 mt-3">
+                    <h6 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-lock me-1"></i> Account Security</h6>
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.password.id_for_label }}" class="form-label fw-semibold text-secondary small">Password *</label>
+                        <div class="input-group">
+                            {{ form.password }}
+                            <button class="btn btn-outline-secondary text-secondary" type="button" onclick="togglePassField('{{ form.password.id_for_label }}', 'icon1')">
+                                <i class="fa-solid fa-eye" id="icon1"></i>
+                            </button>
+                        </div>
+                        {% if form.password.errors %}
+                            <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="{{ form.confirm_password.id_for_label }}" class="form-label fw-semibold text-secondary small">Confirm Password *</label>
+                        <div class="input-group">
+                            {{ form.confirm_password }}
+                            <button class="btn btn-outline-secondary text-secondary" type="button" onclick="togglePassField('{{ form.confirm_password.id_for_label }}', 'icon2')">
+                                <i class="fa-solid fa-eye" id="icon2"></i>
+                            </button>
+                        </div>
+                        {% if form.confirm_password.errors %}
+                            <div class="text-danger small mt-1">{{ form.confirm_password.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="form-check mb-4 mt-2">
+                    {{ form.is_active }}
+                    <label class="form-check-label fw-semibold text-secondary small" for="{{ form.is_active.id_for_label }}">
+                        Active Account (Allows user to log into the system)
+                    </label>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-4">
+                    <a href="{% url 'user_list' %}" class="btn btn-light border px-4">Cancel</a>
+                    <button type="submit" class="btn btn-premium px-4">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save User Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePassField(fieldId, iconId) {
+        const input = document.getElementById(fieldId);
+        const icon = document.getElementById(iconId);
+        if (input && icon) {
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            icon.classList.toggle('fa-eye', !isPass);
+            icon.classList.toggle('fa-eye-slash', isPass);
+        }
+    }
+</script>
+{% endblock %}

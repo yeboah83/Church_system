@@ -74,3 +74,84 @@ class ChurchPermissionTests(TestCase):
         response = self.client.get(reverse('member_create'))
         self.assertRedirects(response, reverse('dashboard'))
 
+    def test_finance_blocked_from_attendance(self):
+        """Verify a Finance Officer is blocked from attendance page and redirected."""
+        self.client.login(username='test_finance', password='password123')
+        response = self.client.get(reverse('attendance_list'))
+        self.assertRedirects(response, reverse('dashboard'))
+
+    def test_finance_navbar_no_attendance(self):
+        """Verify the attendance link is omitted from the navigation bar for Finance Officer."""
+        self.client.login(username='test_finance', password='password123')
+        response = self.client.get(reverse('finance_dashboard'))
+        self.assertContains(response, 'Finance')
+        self.assertNotContains(response, 'href="' + reverse('attendance_list') + '"')
+
+
+class UserManagementTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username='admin_test', password='adminpassword123', role='Super Admin'
+        )
+        self.regular_user = User.objects.create_user(
+            username='user_test', password='userpassword123', role='Secretary'
+        )
+
+    def test_admin_can_access_user_list(self):
+        self.client.login(username='admin_test', password='adminpassword123')
+        response = self.client.get(reverse('user_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'user_test')
+
+    def test_non_admin_blocked_from_user_list(self):
+        self.client.login(username='user_test', password='userpassword123')
+        response = self.client.get(reverse('user_list'))
+        self.assertRedirects(response, reverse('dashboard'))
+
+    def test_admin_can_add_user(self):
+        self.client.login(username='admin_test', password='adminpassword123')
+        response = self.client.post(reverse('user_create'), {
+            'username': 'new_staff',
+            'email': 'staff@church.com',
+            'first_name': 'New',
+            'last_name': 'Staff',
+            'role': 'Pastor',
+            'phone_number': '0501234567',
+            'password': 'newpassword123',
+            'confirm_password': 'newpassword123',
+            'is_active': True
+        })
+        self.assertRedirects(response, reverse('user_list'))
+        self.assertTrue(User.objects.filter(username='new_staff').exists())
+        new_user = User.objects.get(username='new_staff')
+        self.assertEqual(new_user.role, 'Pastor')
+        self.assertTrue(new_user.check_password('newpassword123'))
+
+    def test_admin_can_update_user(self):
+        self.client.login(username='admin_test', password='adminpassword123')
+        response = self.client.post(reverse('user_update', kwargs={'pk': self.regular_user.pk}), {
+            'username': 'user_test_updated',
+            'email': 'updated@church.com',
+            'first_name': 'UpdatedName',
+            'last_name': 'UpdatedLast',
+            'role': 'Finance Officer',
+            'phone_number': '0240001112',
+            'is_active': True
+        })
+        self.assertRedirects(response, reverse('user_list'))
+        self.regular_user.refresh_from_db()
+        self.assertEqual(self.regular_user.username, 'user_test_updated')
+        self.assertEqual(self.regular_user.role, 'Finance Officer')
+
+    def test_admin_can_change_user_password(self):
+        self.client.login(username='admin_test', password='adminpassword123')
+        response = self.client.post(reverse('user_change_password', kwargs={'pk': self.regular_user.pk}), {
+            'new_password': 'changedpassword123',
+            'confirm_password': 'changedpassword123'
+        })
+        self.assertRedirects(response, reverse('user_list'))
+        self.regular_user.refresh_from_db()
+        self.assertTrue(self.regular_user.check_password('changedpassword123'))
+
+
+
