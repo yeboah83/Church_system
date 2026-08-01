@@ -31,6 +31,8 @@ urlpatterns = [
     path('attendance/', views.attendance_list, name='attendance_list'),
     path('attendance/session/add/', views.attendance_session_create, name='attendance_session_create'),
     path('attendance/session/<int:pk>/', views.attendance_session_detail, name='attendance_session_detail'),
+    path('attendance/session/<int:pk>/qr/', views.attendance_session_qr, name='attendance_session_qr'),
+    path('attendance/session/<int:pk>/check-in/', views.attendance_self_checkin, name='attendance_self_checkin'),
     
     # Departments
     path('departments/', views.department_list, name='department_list'),
@@ -69,5 +71,7 @@ urlpatterns = [
     path('users/<int:pk>/edit/', views.user_update, name='user_update'),
     path('users/<int:pk>/password/', views.user_change_password, name='user_change_password'),
     path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
+    # Audit Logs
+    path('audit-logs/', views.audit_log_list, name='audit_log_list'),
 ]
 

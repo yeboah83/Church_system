@@ -66,6 +66,13 @@
                 <h5 class="fw-semibold text-secondary mb-3 border-bottom pb-2">Church Details</h5>
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
+                        <label for="id_membership_id" class="form-label fw-medium">Membership ID</label>
+                        {{ form.membership_id }}
+                        {% if form.membership_id.help_text %}
+                            <small class="text-muted d-block mt-1">{{ form.membership_id.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
                         <label for="id_department" class="form-label fw-medium">Department</label>
                         {{ form.department }}
                     </div>

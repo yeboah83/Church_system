@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +13,7 @@
     <style>
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: #f1f5f9;
+            background-color: #fdfbf7;
             margin: 0;
             padding: 40px;
             display: flex;
@@ -25,20 +26,32 @@
         .member-card {
             width: 350px;
             height: 220px;
-            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            background: linear-gradient(135deg, #180630 0%, #2e1065 40%, #5b21b6 75%, #3b0764 100%);
             color: #ffffff;
-            border-radius: 14px;
+            border-radius: 16px;
             padding: 18px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            box-shadow: 0 12px 30px rgba(46, 16, 101, 0.4), 0 0 15px rgba(212, 175, 55, 0.2);
             position: relative;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            border: 1.5px solid #d4af37;
+            overflow: hidden;
+        }
+
+        .member-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #d4af37, #f7d070, #aa771c, #d4af37);
         }
 
         .header {
-            border-bottom: 1.5px solid rgba(99, 102, 241, 0.4);
+            border-bottom: 1.5px solid rgba(212, 175, 55, 0.35);
             padding-bottom: 8px;
             display: flex;
             justify-content: space-between;
@@ -47,36 +60,40 @@
 
         .header h3 {
             margin: 0;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.5px;
+            color: #f7d070;
+            text-transform: uppercase;
         }
 
         .header span {
             font-size: 8px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #cbd5e1;
+            letter-spacing: 0.6px;
+            color: #f7d070;
         }
 
         .body-layout {
             display: flex;
-            margin-top: 12px;
-            height: 110px;
+            margin-top: 10px;
+            height: 112px;
             align-items: center;
         }
 
         .photo-area {
-            width: 80px;
-            height: 100px;
-            border-radius: 6px;
-            border: 1.5px solid rgba(99, 102, 241, 0.4);
-            background: #0f172a;
+            width: 82px;
+            height: 102px;
+            border-radius: 8px;
+            border: 2px solid #d4af37;
+            background: #180630;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
             flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
         .photo-area img {
@@ -87,7 +104,7 @@
 
         .photo-area i {
             font-size: 32px;
-            color: rgba(99, 102, 241, 0.5);
+            color: rgba(212, 175, 55, 0.6);
         }
 
         .details-area {
@@ -102,24 +119,26 @@
             font-weight: 700;
             margin: 0 0 6px 0;
             text-transform: uppercase;
-            letter-spacing: 0.2px;
+            letter-spacing: 0.3px;
+            color: #ffffff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.4);
         }
 
         .detail-row {
-            font-size: 9px;
+            font-size: 9.5px;
             margin-bottom: 4px;
-            color: #e2e8f0;
+            color: #f3e8ff;
         }
 
         .detail-row strong {
-            color: #a5b4fc;
+            color: #f7d070;
         }
 
         .footer {
-            border-top: 1px solid rgba(255,255,255,0.08);
+            border-top: 1px solid rgba(212, 175, 55, 0.25);
             padding-top: 6px;
-            font-size: 7px;
-            color: #94a3b8;
+            font-size: 7.5px;
+            color: #e9d5ff;
             font-style: italic;
             display: flex;
             justify-content: space-between;
@@ -133,30 +152,34 @@
         }
 
         .btn {
-            background-color: #6366f1;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
+            background: linear-gradient(135deg, #7e22ce 0%, #9333ea 50%, #d4af37 100%);
+            color: #ffffff;
+            padding: 9px 18px;
+            border-radius: 8px;
+            border: 1px solid rgba(247, 208, 112, 0.4);
             cursor: pointer;
             font-family: inherit;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 14px;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
+            box-shadow: 0 4px 12px rgba(126, 34, 206, 0.3);
+            transition: all 0.2s ease;
         }
 
         .btn:hover {
-            background-color: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(126, 34, 206, 0.4);
         }
 
         .btn-secondary {
-            background-color: #64748b;
+            background: #4c1d95;
+            border-color: rgba(255,255,255,0.2);
         }
 
         .btn-secondary:hover {
-            background-color: #475569;
+            background: #3b0764;
         }
 
         /* --- PRINT MEDIA STYLING --- */
@@ -178,6 +201,8 @@
                 top: 0;
                 left: 0;
                 page-break-inside: avoid;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     </style>
@@ -191,7 +216,10 @@
 
     <div class="member-card">
         <div class="header">
-            <h3><i class="fa-solid fa-church me-1"></i> COMMUNITY CHURCH</h3>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <img src="{% static 'images/logo.png' %}" alt="Logo" style="height: 26px; width: auto; object-fit: contain;">
+                <h3 style="margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #f7d070;">R.A.C.I CHURCH</h3>
+            </div>
             <span>MEMBER ID CARD</span>
         </div>
         

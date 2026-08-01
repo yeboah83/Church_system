@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Audit Logs - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Audit Log</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-0"><i class="fa-solid fa-shield-halved text-indigo me-2" style="color: var(--accent-color);"></i>System Activity Audit Log</h3>
+        <p class="text-secondary small mb-0">Track and inspect all operations, logins, and data changes across the application.</p>
+    </div>
+    <div>
+        <span class="badge bg-indigo-subtle text-indigo px-3 py-2 rounded-pill fw-semibold" style="background: rgba(99, 102, 241, 0.1); color: var(--accent-color);">
+            <i class="fa-solid fa-list-check me-1"></i> {{ total_count }} Log Entries
+        </span>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card-premium p-4 mb-4">
+    <form method="GET" class="row g-3 align-items-center">
+        <div class="col-12 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by user, description or IP..." value="{{ query }}">
+            </div>
+        </div>
+        
+        <div class="col-6 col-md-3">
+            <select name="module" class="form-select">
+                <option value="">All Modules</option>
+                {% for m in modules %}
+                    <option value="{{ m }}" {% if module_filter == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+            <select name="action" class="form-select">
+                <option value="">All Actions</option>
+                {% for a in actions %}
+                    <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-12 col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-premium w-100"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+            {% if query or module_filter or action_filter %}
+                <a href="{% url 'audit_log_list' %}" class="btn btn-outline-secondary" title="Reset Filters"><i class="fa-solid fa-rotate-left"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Audit Log Table Card -->
+<div class="card-premium overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col" class="ps-4" style="font-size: 0.85rem;">Timestamp</th>
+                    <th scope="col" style="font-size: 0.85rem;">User</th>
+                    <th scope="col" style="font-size: 0.85rem;">Action</th>
+                    <th scope="col" style="font-size: 0.85rem;">Module</th>
+                    <th scope="col" style="font-size: 0.85rem;">Description</th>
+                    <th scope="col" class="pe-4 text-end" style="font-size: 0.85rem;">IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for log in logs %}
+                        <tr>
+                            <td class="ps-4 text-secondary small font-monospace" style="font-size: 0.82rem;">
+                                <i class="fa-regular fa-clock me-1 text-muted"></i>{{ log.timestamp|date:"Y-m-d H:i:s" }}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-indigo bg-opacity-10 d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; color: var(--accent-color); font-size: 0.85rem;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <span class="fw-semibold text-dark d-block" style="font-size: 0.88rem;">{{ log.user_display }}</span>
+                                        {% if log.user %}
+                                            <span class="text-muted small" style="font-size: 0.72rem;">Role: {{ log.user.role }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if log.action_type == 'CREATE' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-plus me-1"></i>CREATE</span>
+                                {% elif log.action_type == 'UPDATE' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-pen me-1"></i>UPDATE</span>
+                                {% elif log.action_type == 'DELETE' %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-trash me-1"></i>DELETE</span>
+                                {% elif log.action_type == 'LOGIN' %}
+                                    <span class="badge bg-info bg-opacity-10 text-info px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>LOGIN</span>
+                                {% elif log.action_type == 'LOGOUT' %}
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>LOGOUT</span>
+                                {% elif log.action_type == 'EXPORT' %}
+                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-file-export me-1"></i>EXPORT</span>
+                                {% else %}
+                                    <span class="badge bg-dark bg-opacity-10 text-dark px-2.5 py-1" style="font-size: 0.72rem;">{{ log.action_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.78rem;">{{ log.module }}</span>
+                            </td>
+                            <td class="text-secondary" style="font-size: 0.88rem; max-width: 350px;">
+                                {{ log.description }}
+                            </td>
+                            <td class="pe-4 text-end text-muted small font-monospace" style="font-size: 0.8rem;">
+                                {{ log.ip_address|default:"127.0.0.1" }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-shield-cat fs-2 mb-2"></i>
+                            <p class="mb-0">No audit logs matching your criteria.</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

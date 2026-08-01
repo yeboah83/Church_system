@@ -45,6 +45,9 @@
                                 </span>
                             </td>
                             <td class="text-end pe-4">
+                                <a href="{% url 'attendance_session_qr' pk=s.pk %}" class="btn btn-sm btn-outline-secondary me-1 px-2.5" style="border-radius: 6px;" title="View QR Code Poster">
+                                    <i class="fa-solid fa-qrcode me-1"></i> QR Code
+                                </a>
                                 <a href="{% url 'attendance_session_detail' pk=s.pk %}" class="btn btn-sm btn-outline-primary px-3" style="border-radius: 6px;">
                                     <i class="fa-solid fa-clipboard-check me-1"></i> Open Log
                                 </a>

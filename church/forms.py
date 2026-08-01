@@ -20,13 +20,32 @@ class BootstrapModelForm(forms.ModelForm):
 
 
 class MemberForm(BootstrapModelForm):
+    membership_id = forms.CharField(
+        required=False,
+        label="Membership ID",
+        help_text="Leave blank to auto-generate (e.g. RACI26/001)",
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Auto-generated (e.g. RACI26/001)',
+        })
+    )
+
     class Meta:
         model = Member
-        exclude = ['membership_id']
+        fields = [
+            'membership_id', 'full_name', 'gender', 'date_of_birth',
+            'phone_number', 'address', 'marital_status', 'baptized',
+            'date_joined', 'photo', 'department', 'cell_group', 'status'
+        ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'date_joined': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['membership_id'].widget.attrs['readonly'] = True
+            self.fields['membership_id'].help_text = "Membership ID cannot be changed once assigned."
 
 
 class VisitorForm(BootstrapModelForm):

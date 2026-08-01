@@ -51,6 +51,18 @@
                         <div class="bg-light p-3 rounded-3 mb-3 text-secondary" style="font-size: 0.85rem; max-height: 120px; overflow-y: auto; white-space: pre-wrap;">
                             {{ s.notes }}
                         </div>
+
+                        {% if s.audio_file %}
+                        <div class="mb-3 p-2 bg-light rounded-3 border">
+                            <label class="small fw-semibold text-muted d-block mb-1" style="font-size: 0.78rem;">
+                                <i class="fa-solid fa-file-audio text-danger me-1"></i> Audio Sermon
+                            </label>
+                            <audio controls class="w-100" style="height: 36px;">
+                                <source src="{{ s.audio_file.url }}">
+                                Your browser does not support HTML5 audio playback.
+                            </audio>
+                        </div>
+                        {% endif %}
                     </div>
                     
                     {% if user.role in 'Super Admin Pastor' or user.is_superuser %}

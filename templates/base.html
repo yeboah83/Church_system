@@ -20,14 +20,17 @@
     <div class="wrapper">
         <!-- Sidebar -->
         <nav id="sidebar" class="glass-sidebar">
-            <div class="sidebar-header">
-                <h4><i class="fa-solid fa-church me-2"></i>CMS</h4>
+            <div class="sidebar-header text-center py-3">
+                <a href="{% url 'dashboard' %}" class="text-decoration-none text-white d-flex align-items-center justify-content-center gap-2">
+                    <img src="{% static 'images/logo.png' %}" alt="R.A.C.I Logo" style="max-height: 45px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));">
+                    <span class="fw-bold fs-5 tracking-wide">R.A.C.I CMS</span>
+                </a>
             </div>
 
             <div class="px-4 py-3 border-bottom border-secondary border-opacity-10 d-flex align-items-center">
                 <div class="flex-grow-1">
                     <h6 class="text-white mb-0 text-truncate" style="max-width: 140px;">{{ user.username|title }}</h6>
-                    <span class="badge bg-indigo text-xs text-uppercase mt-1" style="background-color: var(--accent-color); font-size: 0.65rem;">{{ user.role }}</span>
+                    <span class="badge text-xs text-uppercase mt-1" style="background: var(--gold-gradient); color: #1e0a38; font-weight: 700; font-size: 0.65rem;">{{ user.role }}</span>
                 </div>
                 <a href="{% url 'logout' %}" class="text-secondary hover:text-white ms-2" title="Logout">
                     <i class="fa-solid fa-right-from-bracket fs-5"></i>
@@ -98,6 +101,14 @@
                 <li class="{% if 'user' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'user_list' %}">
                         <i class="fa-solid fa-users-gear"></i> User Management
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if user.role == 'Super Admin' or user.role == 'Pastor' or user.is_superuser %}
+                <li class="{% if 'audit' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'audit_log_list' %}">
+                        <i class="fa-solid fa-shield-halved"></i> Audit Log
                     </a>
                 </li>
                 {% endif %}

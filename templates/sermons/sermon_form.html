@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Sermon Details - CMS{% endblock %}
 
@@ -10,11 +11,11 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-12 col-md-8">
+    <div class="col-12 col-md-9 col-lg-8">
         <div class="card-premium p-4 mb-4">
             <h3 class="fw-bold mb-4"><i class="fa-solid fa-book-open-reader text-indigo me-2" style="color: var(--accent-color);"></i>{{ title }}</h3>
             
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data" id="sermonForm">
                 {% csrf_token %}
                 
                 {% if form.errors %}
@@ -46,20 +47,174 @@
                 <div class="mb-3">
                     <label for="id_scripture" class="form-label fw-medium">Bible Scripture Reference</label>
                     {{ form.scripture }}
-                    <small class="text-muted d-block mt-1">E.g., Genesis 1:1-3, Romans 8:28</small>
+                    <small class="text-muted d-block mt-1">E.g., Genesis 1:1-3, Luke 1:33, Romans 8:28</small>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-4">
                     <label for="id_notes" class="form-label fw-medium">Sermon Key Points & Notes</label>
                     {{ form.notes }}
                 </div>
 
-                <div class="d-flex justify-content-end gap-3 mt-4 border-top pt-3">
+                <!-- Voice Recording & Audio Attachment Section -->
+                <div class="card p-3 mb-4 border-0" style="background: rgba(126, 34, 206, 0.04); border-radius: 12px; border: 1.5px solid rgba(212, 175, 55, 0.3) !important;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0 text-dark">
+                            <i class="fa-solid fa-microphone text-danger me-2"></i>Voice & Audio Recording
+                        </h6>
+                        <span class="badge bg-indigo-subtle text-indigo" style="font-size: 0.75rem;">Live Audio Capture</span>
+                    </div>
+                    <p class="text-secondary small mb-3">Record live sermon audio using your device microphone, or upload an existing audio file (MP3/WAV/WebM).</p>
+
+                    {% if sermon and sermon.audio_file %}
+                        <div class="alert alert-light border mb-3">
+                            <label class="small fw-semibold text-muted d-block mb-1"><i class="fa-solid fa-file-audio me-1 text-primary"></i> Current Sermon Audio Track:</label>
+                            <audio controls class="w-100" style="height: 38px;">
+                                <source src="{{ sermon.audio_file.url }}">
+                            </audio>
+                        </div>
+                    {% endif %}
+
+                    <!-- Live Voice Recorder Box -->
+                    <div class="p-3 bg-white rounded-3 border mb-3 text-center">
+                        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                            <i class="fa-solid fa-circle text-danger fa-beat me-1 d-none" id="recDot"></i>
+                            <span id="recStatus" class="fw-semibold text-secondary small">Microphone Ready</span>
+                        </div>
+                        <div id="recTimer" class="font-monospace fs-3 fw-bold text-dark mb-3">00:00</div>
+
+                        <div class="d-flex justify-content-center gap-2 flex-wrap">
+                            <button type="button" id="startRecBtn" class="btn btn-danger btn-sm px-3 fw-semibold">
+                                <i class="fa-solid fa-microphone me-1"></i> Start Recording Voice
+                            </button>
+                            <button type="button" id="stopRecBtn" class="btn btn-dark btn-sm px-3 fw-semibold d-none">
+                                <i class="fa-solid fa-square me-1"></i> Stop Recording
+                            </button>
+                            <button type="button" id="discardRecBtn" class="btn btn-outline-secondary btn-sm px-3 d-none">
+                                <i class="fa-solid fa-trash me-1"></i> Discard Clip
+                            </button>
+                        </div>
+
+                        <audio id="recPreview" controls class="w-100 mt-3 d-none"></audio>
+                    </div>
+
+                    <!-- File Upload Input (auto-filled on recording) -->
+                    <div>
+                        <label for="id_audio_file" class="form-label small fw-semibold text-muted">Audio File Attachment (Manual Upload or Recorded Voice)</label>
+                        {{ form.audio_file }}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3 border-top pt-3">
                     <a href="{% url 'sermon_list' %}" class="btn btn-light border px-4">Cancel</a>
-                    <button type="submit" class="btn btn-premium px-5">Save Sermon</button>
+                    <button type="submit" class="btn btn-premium px-5"><i class="fa-solid fa-floppy-disk me-1"></i> Save Sermon</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let mediaRecorder;
+        let audioChunks = [];
+        let timerInterval;
+        let secondsRecorded = 0;
+
+        const startBtn = document.getElementById('startRecBtn');
+        const stopBtn = document.getElementById('stopRecBtn');
+        const discardBtn = document.getElementById('discardRecBtn');
+        const recStatus = document.getElementById('recStatus');
+        const recTimer = document.getElementById('recTimer');
+        const recDot = document.getElementById('recDot');
+        const recPreview = document.getElementById('recPreview');
+        const audioFileInput = document.getElementById('id_audio_file');
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            startBtn.addEventListener('click', async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                        const audioBlob = new Blob(audioChunks, { type: mimeType });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        recPreview.src = audioUrl;
+                        recPreview.classList.remove('d-none');
+
+                        // Programmatically attach to file input
+                        const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+                        const file = new File([audioBlob], `sermon_voice_${Date.now()}.${ext}`, { type: mimeType });
+                        const container = new DataTransfer();
+                        container.items.add(file);
+                        audioFileInput.files = container.files;
+
+                        recStatus.textContent = 'Voice recording captured & ready to save!';
+                        recStatus.className = 'fw-semibold text-success small';
+                        recDot.classList.add('d-none');
+                        discardBtn.classList.remove('d-none');
+                    };
+
+                    mediaRecorder.start(200);
+                    secondsRecorded = 0;
+                    updateTimerDisplay();
+                    timerInterval = setInterval(() => {
+                        secondsRecorded++;
+                        updateTimerDisplay();
+                    }, 1000);
+
+                    startBtn.classList.add('d-none');
+                    stopBtn.classList.remove('d-none');
+                    recDot.classList.remove('d-none');
+                    recStatus.textContent = 'Recording Live Voice...';
+                    recStatus.className = 'fw-semibold text-danger small';
+                    recPreview.classList.add('d-none');
+                } catch (err) {
+                    alert('Microphone Access Denied or Unsupported: ' + err.message);
+                }
+            });
+
+            stopBtn.addEventListener('click', () => {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    clearInterval(timerInterval);
+                    stopBtn.classList.add('d-none');
+                    startBtn.classList.remove('d-none');
+                    startBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Re-record Voice';
+                }
+            });
+
+            discardBtn.addEventListener('click', () => {
+                audioChunks = [];
+                audioFileInput.value = '';
+                recPreview.src = '';
+                recPreview.classList.add('d-none');
+                discardBtn.classList.add('d-none');
+                recStatus.textContent = 'Microphone Ready';
+                recStatus.className = 'fw-semibold text-secondary small';
+                recTimer.textContent = '00:00';
+                startBtn.innerHTML = '<i class="fa-solid fa-microphone me-1"></i> Start Recording Voice';
+            });
+        } else {
+            recStatus.textContent = 'Voice recording is not supported on your browser.';
+            startBtn.disabled = true;
+        }
+
+        function updateTimerDisplay() {
+            const mins = String(Math.floor(secondsRecorded / 60)).padStart(2, '0');
+            const secs = String(secondsRecorded % 60).padStart(2, '0');
+            recTimer.textContent = `${mins}:${secs}`;
+        }
+    });
+</script>
 {% endblock %}

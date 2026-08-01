@@ -1,8 +1,10 @@
 import datetime
 import io
+import base64
 from decimal import Decimal
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
+import qrcode
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
@@ -10,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.http import HttpResponse, Http404
+from django.urls import reverse
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -19,7 +22,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from .models import (
     CustomUser, Department, Member, Visitor, AttendanceSession, AttendanceRecord,
-    Event, FinanceTransaction, Sermon, Announcement
+    Event, FinanceTransaction, Sermon, Announcement, AuditLog, log_activity
 )
 from .forms import (
     MemberForm, VisitorForm, AttendanceSessionForm, FinanceTransactionForm,
@@ -40,15 +43,19 @@ def login_view(request):
         user = authenticate(request, username=u, password=p)
         if user is not None:
             login(request, user)
+            log_activity(request, 'LOGIN', 'Authentication', f"User '{user.username}' ({user.role}) logged in successfully")
             messages.success(request, f"Welcome back, {user.username}!")
             return redirect('dashboard')
         else:
+            log_activity(request, 'LOGIN', 'Authentication', f"Failed login attempt for username '{u}'")
             messages.error(request, "Invalid username or password.")
     return render(request, 'login.html')
 
 
 @login_required
 def logout_view(request):
+    if request.user.is_authenticated:
+        log_activity(request, 'LOGOUT', 'Authentication', f"User '{request.user.username}' logged out")
     logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('login')
@@ -129,6 +136,9 @@ def dashboard(request):
     # Announcements (latest 3)
     announcements = Announcement.objects.all().order_by('-date_posted')[:3]
 
+    # Audit Logs (latest 8)
+    recent_audit_logs = AuditLog.objects.all()[:8]
+
     context = {
         'total_members': total_members,
         'total_visitors': total_visitors,
@@ -141,6 +151,7 @@ def dashboard(request):
         'chart_labels': chart_labels,
         'chart_data': chart_data,
         'announcements': announcements,
+        'recent_audit_logs': recent_audit_logs,
     }
     return render(request, 'dashboard.html', context)
 
@@ -187,6 +198,7 @@ def member_create(request):
         form = MemberForm(request.POST, request.FILES)
         if form.is_valid():
             member = form.save()
+            log_activity(request, 'CREATE', 'Members', f"Registered member '{member.full_name}' (ID: {member.membership_id})")
             messages.success(request, f"Member '{member.full_name}' registered successfully with ID: {member.membership_id}")
             return redirect('member_list')
     else:
@@ -202,6 +214,7 @@ def member_update(request, pk):
         form = MemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'Members', f"Updated member profile for '{member.full_name}' (ID: {member.membership_id})")
             messages.success(request, f"Member '{member.full_name}' updated successfully.")
             return redirect('member_profile', pk=member.pk)
     else:
@@ -216,6 +229,7 @@ def member_delete(request, pk):
     if request.method == 'POST':
         name = member.full_name
         member.delete()
+        log_activity(request, 'DELETE', 'Members', f"Deleted member record for '{name}' (ID: {pk})")
         messages.success(request, f"Member '{name}' has been deleted.")
         return redirect('member_list')
     return render(request, 'confirm_delete.html', {'object': member, 'type': 'Member', 'cancel_url': 'member_list'})
@@ -393,6 +407,110 @@ def attendance_session_detail(request, pk):
     return render(request, 'attendance/session_detail.html', context)
 
 
+@login_required
+@role_required(['Super Admin', 'Pastor', 'Secretary', 'Department Leader'])
+def attendance_session_qr(request, pk):
+    session = get_object_or_404(AttendanceSession, pk=pk)
+    checkin_url = request.build_absolute_uri(reverse('attendance_self_checkin', kwargs={'pk': session.pk}))
+    
+    # Generate QR Code image in base64
+    qr = qrcode.QRCode(version=1, box_size=10, border=3)
+    qr.add_data(checkin_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    context = {
+        'session': session,
+        'checkin_url': checkin_url,
+        'qr_b64': qr_b64,
+    }
+    return render(request, 'attendance/session_qr.html', context)
+
+
+def attendance_self_checkin(request, pk):
+    session = get_object_or_404(AttendanceSession, pk=pk)
+    success = False
+    message = None
+    error = None
+    member = None
+    visitor = None
+
+    if request.method == 'POST':
+        user_type = request.POST.get('user_type', 'member')
+        
+        if user_type == 'member':
+            identifier = request.POST.get('identifier', '').strip()
+            if not identifier:
+                error = "Please enter your Membership ID or Phone Number."
+            else:
+                matched_member = Member.objects.filter(
+                    Q(membership_id__iexact=identifier) |
+                    Q(phone_number__iexact=identifier) |
+                    Q(full_name__iexact=identifier)
+                ).first()
+
+                if not matched_member:
+                    matched_member = Member.objects.filter(
+                        Q(phone_number__icontains=identifier) |
+                        Q(full_name__icontains=identifier)
+                    ).first()
+
+                if matched_member:
+                    member = matched_member
+                    rec, created = AttendanceRecord.objects.get_or_create(
+                        session=session,
+                        member=member,
+                        defaults={'status': 'Present'}
+                    )
+                    if not created:
+                        rec.status = 'Present'
+                        rec.save()
+                    success = True
+                    message = f"Welcome, {member.full_name}! Your attendance for {session.service_type} on {session.date} has been recorded as PRESENT."
+                else:
+                    error = f"No member found matching '{identifier}'. Please check your Membership ID (e.g. RACI26/001) or register as a guest."
+        
+        elif user_type == 'visitor':
+            name = request.POST.get('visitor_name', '').strip()
+            phone = request.POST.get('visitor_phone', '').strip()
+            address = request.POST.get('visitor_address', '').strip() or 'Guest Check-in'
+
+            if not name or not phone:
+                error = "Please provide both your Name and Phone Number to check in as a guest."
+            else:
+                vis, _ = Visitor.objects.get_or_create(
+                    phone=phone,
+                    defaults={'name': name, 'address': address, 'first_visit_date': session.date}
+                )
+                rec, created = AttendanceRecord.objects.get_or_create(
+                    session=session,
+                    visitor=vis,
+                    defaults={'status': 'Present'}
+                )
+                if not created:
+                    rec.status = 'Present'
+                    rec.save()
+                visitor = vis
+                success = True
+                message = f"Welcome, {vis.name}! Your attendance as a guest for {session.service_type} has been recorded as PRESENT."
+
+    all_members = Member.objects.filter(status='Active').order_by('full_name')
+
+    context = {
+        'session': session,
+        'success': success,
+        'message': message,
+        'error': error,
+        'member': member,
+        'visitor': visitor,
+        'all_members': all_members,
+    }
+    return render(request, 'attendance/self_checkin.html', context)
+
+
 # --- DEPARTMENTS ---
 
 @login_required
@@ -500,6 +618,7 @@ def finance_transaction_create(request):
             tx = form.save(commit=False)
             tx.recorded_by = request.user
             tx.save()
+            log_activity(request, 'CREATE', 'Finance', f"Logged {tx.transaction_type} of GHS {tx.amount:.2f} ({tx.category})")
             messages.success(request, f"{tx.transaction_type} transaction of GHS {tx.amount} logged successfully.")
             return redirect('finance_dashboard')
     else:
@@ -515,6 +634,7 @@ def finance_transaction_update(request, pk):
         form = FinanceTransactionForm(request.POST, instance=tx)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'Finance', f"Updated transaction #{tx.pk} ({tx.transaction_type} - GHS {tx.amount:.2f})")
             messages.success(request, "Transaction updated successfully.")
             return redirect('finance_dashboard')
     else:
@@ -530,6 +650,7 @@ def finance_transaction_delete(request, pk):
         amount = tx.amount
         category = tx.category
         tx.delete()
+        log_activity(request, 'DELETE', 'Finance', f"Deleted transaction '{category} : GHS {amount:.2f}'")
         messages.success(request, f"Transaction '{category} : {amount}' deleted.")
         return redirect('finance_dashboard')
     return render(request, 'confirm_delete.html', {'object': tx, 'type': 'Transaction', 'cancel_url': 'finance_dashboard'})
@@ -555,9 +676,10 @@ def sermon_list(request):
 @role_required(['Super Admin', 'Pastor'])
 def sermon_create(request):
     if request.method == 'POST':
-        form = SermonForm(request.POST)
+        form = SermonForm(request.POST, request.FILES)
         if form.is_valid():
             s = form.save()
+            log_activity(request, 'CREATE', 'Sermons', f"Added sermon '{s.title}' by {s.speaker}")
             messages.success(request, f"Sermon '{s.title}' added successfully.")
             return redirect('sermon_list')
     else:
@@ -570,9 +692,10 @@ def sermon_create(request):
 def sermon_update(request, pk):
     sermon = get_object_or_404(Sermon, pk=pk)
     if request.method == 'POST':
-        form = SermonForm(request.POST, instance=sermon)
+        form = SermonForm(request.POST, request.FILES, instance=sermon)
         if form.is_valid():
-            form.save()
+            s = form.save()
+            log_activity(request, 'UPDATE', 'Sermons', f"Updated sermon '{s.title}'")
             messages.success(request, "Sermon details updated successfully.")
             return redirect('sermon_list')
     else:
@@ -587,7 +710,8 @@ def sermon_delete(request, pk):
     if request.method == 'POST':
         title = sermon.title
         sermon.delete()
-        messages.success(request, f"Sermon '{title}' has been deleted.")
+        log_activity(request, 'DELETE', 'Sermons', f"Deleted sermon '{title}'")
+        messages.success(request, f"Sermon '{title}' deleted.")
         return redirect('sermon_list')
     return render(request, 'confirm_delete.html', {'object': sermon, 'type': 'Sermon', 'cancel_url': 'sermon_list'})
 
@@ -813,21 +937,35 @@ def download_member_card_pdf(request, pk):
     # 350x220 points is approximately credit card sized layout
     p = canvas.Canvas(buffer, pagesize=(350, 220))
     
-    # Card Background - Deep Indigo
-    p.setFillColor(colors.HexColor('#1E1B4B'))
+    # Card Background - Deep Royal Purple
+    p.setFillColor(colors.HexColor('#1E0A38'))
     p.rect(0, 0, 350, 220, fill=True, stroke=False)
     
-    # Top bar - Violet accent
-    p.setFillColor(colors.HexColor('#4F46E5'))
+    # Top bar - Metallic Gold accent
+    p.setFillColor(colors.HexColor('#D4AF37'))
     p.rect(0, 180, 350, 40, fill=True, stroke=False)
+
+    # Gold Border outline
+    p.setStrokeColor(colors.HexColor('#F7D070'))
+    p.setLineWidth(1.5)
+    p.rect(0, 0, 350, 220, fill=False, stroke=True)
     
-    # Text Header
-    p.setFillColor(colors.white)
-    p.setFont("Helvetica-Bold", 13)
-    p.drawString(15, 193, "COMMUNITY CHURCH")
+    # Text Header & Logo
+    logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
+    text_x = 15
+    if os.path.exists(logo_path):
+        try:
+            p.drawImage(logo_path, 10, 183, width=32, height=34, mask='auto', preserveAspectRatio=True)
+            text_x = 48
+        except Exception:
+            pass
+
+    p.setFillColor(colors.HexColor('#1E0A38'))
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(text_x, 193, "R.A.C.I CHURCH")
     
-    p.setFont("Helvetica", 8)
-    p.setFillColor(colors.HexColor('#E0E7FF'))
+    p.setFont("Helvetica-Bold", 8)
+    p.setFillColor(colors.HexColor('#1E0A38'))
     p.drawString(250, 196, "MEMBER CARD")
 
     # Member Photo
@@ -842,10 +980,10 @@ def download_member_card_pdf(request, pk):
 
     if not photo_drawn:
         # Placeholder picture
-        p.setStrokeColor(colors.HexColor('#4F46E5'))
-        p.setFillColor(colors.HexColor('#312E81'))
+        p.setStrokeColor(colors.HexColor('#D4AF37'))
+        p.setFillColor(colors.HexColor('#2E1065'))
         p.rect(15, 45, 90, 110, fill=True, stroke=True)
-        p.setFillColor(colors.white)
+        p.setFillColor(colors.HexColor('#F7D070'))
         p.setFont("Helvetica-Bold", 10)
         p.drawCentredString(60, 95, "NO PHOTO")
 
@@ -854,21 +992,28 @@ def download_member_card_pdf(request, pk):
     p.setFont("Helvetica-Bold", 12)
     p.drawString(120, 140, member.full_name[:22].upper())
     
+    p.setFont("Helvetica-Bold", 9)
+    p.setFillColor(colors.HexColor('#F7D070'))
+    p.drawString(120, 118, "ID:")
+    p.drawString(120, 98, "Dept:")
+    p.drawString(120, 78, "Joined:")
+    p.drawString(120, 58, "Status:")
+
     p.setFont("Helvetica", 9)
-    p.setFillColor(colors.HexColor('#C7D2FE'))
-    p.drawString(120, 118, f"Membership ID: {member.membership_id}")
-    p.drawString(120, 98, f"Dept: {member.department.name if member.department else 'General Member'}")
-    p.drawString(120, 78, f"Joined: {member.date_joined.strftime('%b %d, %Y') if member.date_joined else 'N/A'}")
-    p.drawString(120, 58, f"Status: {member.status}")
+    p.setFillColor(colors.HexColor('#F3E8FF'))
+    p.drawString(140, 118, f"{member.membership_id}")
+    p.drawString(155, 98, f"{member.department.name if member.department else 'General'}")
+    p.drawString(165, 78, f"{member.date_joined.strftime('%b %d, %Y') if member.date_joined else 'N/A'}")
+    p.drawString(160, 58, f"{member.status}")
     
     # Divider line
-    p.setStrokeColor(colors.HexColor('#4F46E5'))
+    p.setStrokeColor(colors.HexColor('#D4AF37'))
     p.setLineWidth(1)
     p.line(120, 48, 335, 48)
     
     # Footer Notice
     p.setFont("Helvetica-Oblique", 7)
-    p.setFillColor(colors.HexColor('#818CF8'))
+    p.setFillColor(colors.HexColor('#E9D5FF'))
     p.drawString(120, 36, "Authorized Member ID. Non-transferable.")
     
     p.showPage()
@@ -1067,4 +1212,42 @@ def user_delete(request, pk):
         'type': 'User',
         'cancel_url': 'user_list'
     })
+
+
+@login_required
+@role_required(['Super Admin', 'Pastor'])
+def audit_log_list(request):
+    query = request.GET.get('q', '').strip()
+    module_filter = request.GET.get('module', '').strip()
+    action_filter = request.GET.get('action', '').strip()
+
+    logs = AuditLog.objects.all()
+
+    if query:
+        logs = logs.filter(
+            Q(description__icontains=query) |
+            Q(user_display__icontains=query) |
+            Q(ip_address__icontains=query)
+        )
+
+    if module_filter:
+        logs = logs.filter(module=module_filter)
+
+    if action_filter:
+        logs = logs.filter(action_type=action_filter)
+
+    modules = AuditLog.objects.values_list('module', flat=True).distinct()
+    actions = AuditLog.objects.values_list('action_type', flat=True).distinct()
+
+    context = {
+        'logs': logs[:250],
+        'query': query,
+        'module_filter': module_filter,
+        'action_filter': action_filter,
+        'modules': sorted([m for m in set(modules) if m]),
+        'actions': sorted([a for a in set(actions) if a]),
+        'total_count': logs.count(),
+    }
+    return render(request, 'audit_logs/audit_log_list.html', context)
+
 

@@ -2,14 +2,14 @@ import datetime
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from .models import Member, Visitor, Department, FinanceTransaction
+from .models import Member, Visitor, Department, FinanceTransaction, AttendanceSession, AttendanceRecord
 
 User = get_user_model()
 
 class ChurchModelTests(TestCase):
     def test_member_id_autogeneration(self):
         """Verify membership IDs are correctly generated sequentially."""
-        current_year = datetime.date.today().year
+        year_yy = datetime.date.today().strftime('%y')
         
         member1 = Member.objects.create(
             full_name="John Test 1",
@@ -20,7 +20,7 @@ class ChurchModelTests(TestCase):
             marital_status="Single",
             baptized=True
         )
-        self.assertEqual(member1.membership_id, f"MEM-{current_year}-0001")
+        self.assertEqual(member1.membership_id, f"RACI{year_yy}/001")
         
         member2 = Member.objects.create(
             full_name="Jane Test 2",
@@ -31,7 +31,7 @@ class ChurchModelTests(TestCase):
             marital_status="Married",
             baptized=False
         )
-        self.assertEqual(member2.membership_id, f"MEM-{current_year}-0002")
+        self.assertEqual(member2.membership_id, f"RACI{year_yy}/002")
 
     def test_visitor_id_autogeneration(self):
         """Verify visitor IDs are generated sequentially."""
@@ -152,6 +152,57 @@ class UserManagementTests(TestCase):
         self.assertRedirects(response, reverse('user_list'))
         self.regular_user.refresh_from_db()
         self.assertTrue(self.regular_user.check_password('changedpassword123'))
+
+
+class QRAttendanceTests(TestCase):
+    def setUp(self):
+        self.secretary = User.objects.create_user(
+            username='sec_test', password='password123', role='Secretary'
+        )
+        self.member = Member.objects.create(
+            full_name="Alice QR",
+            gender="Female",
+            date_of_birth=datetime.date(1995, 5, 5),
+            phone_number="0241112233",
+            address="Accra",
+            marital_status="Single",
+            membership_id="RACI26/001"
+        )
+        self.session = AttendanceSession.objects.create(
+            service_type="Sunday Service",
+            date=datetime.date.today(),
+            description="Test Service"
+        )
+
+    def test_qr_code_page_access(self):
+        self.client.login(username='sec_test', password='password123')
+        response = self.client.get(reverse('attendance_session_qr', kwargs={'pk': self.session.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "QR Code Poster")
+
+    def test_public_self_checkin_page_get(self):
+        response = self.client.get(reverse('attendance_self_checkin', kwargs={'pk': self.session.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sunday Service")
+
+    def test_member_self_checkin_success(self):
+        response = self.client.post(reverse('attendance_self_checkin', kwargs={'pk': self.session.pk}), {
+            'user_type': 'member',
+            'identifier': 'RACI26/001'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Attendance Registered!")
+        rec = AttendanceRecord.objects.get(session=self.session, member=self.member)
+        self.assertEqual(rec.status, 'Present')
+
+    def test_member_self_checkin_invalid_id(self):
+        response = self.client.post(reverse('attendance_self_checkin', kwargs={'pk': self.session.pk}), {
+            'user_type': 'member',
+            'identifier': 'INVALID_ID_999'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No member found matching")
+
 
 
 

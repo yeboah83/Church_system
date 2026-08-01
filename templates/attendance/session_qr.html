@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}QR Code Check-in - {{ session.service_type }} - CMS{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'attendance_list' %}">Attendance</a></li>
+<li class="breadcrumb-item"><a href="{% url 'attendance_session_detail' pk=session.pk %}">{{ session.date }} Log</a></li>
+<li class="breadcrumb-item active" aria-current="page">QR Code Poster</li>
+{% endblock %}
+
+{% block content %}
+<style>
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printable-poster, #printable-poster * {
+        visibility: visible;
+    }
+    #printable-poster {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        color: #1e0a38 !important;
+    }
+    #printable-poster h2 {
+        color: #1e0a38 !important;
+        -webkit-text-fill-color: #1e0a38 !important;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
+.qr-poster-card {
+    background: linear-gradient(180deg, #180630 0%, #290c56 50%, #1e0a38 100%);
+    border: 1.5px solid rgba(212, 175, 55, 0.4);
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(212, 175, 55, 0.15);
+    color: #ffffff;
+}
+.qr-poster-card h2 {
+    background: var(--gold-gradient, linear-gradient(135deg, #d4af37 0%, #f7d070 50%, #b8860b 100%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.qr-frame {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 20px;
+    border: 3px solid var(--gold-main, #d4af37);
+    display: inline-block;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+.service-badge {
+    background: rgba(212, 175, 55, 0.15);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: var(--gold-light, #f7d070);
+}
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-8">
+        
+        <!-- Action bar -->
+        <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+            <a href="{% url 'attendance_session_detail' pk=session.pk %}" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-arrow-left me-2"></i> Back to Session Log
+            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ checkin_url }}" target="_blank" class="btn btn-light border">
+                    <i class="fa-solid fa-external-link me-2"></i> Open Link
+                </a>
+                <button onclick="window.print();" class="btn btn-premium">
+                    <i class="fa-solid fa-print me-2"></i> Print Poster
+                </button>
+            </div>
+        </div>
+
+        <!-- Printable Poster Card -->
+        <div id="printable-poster" class="card qr-poster-card p-5 text-center">
+            <!-- Header with Church Logo & Name -->
+            <div class="mb-4">
+                <div class="d-inline-block mb-3">
+                    <img src="{% static 'images/logo.png' %}" alt="R.A.C.I Logo" class="img-fluid" style="max-height: 100px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));">
+                </div>
+                <h2 class="fw-bold mb-1" style="font-size: 1.6rem;">Reigning Ambassador Church International</h2>
+                <h5 class="text-gold-light fw-semibold mb-0" style="color: var(--gold-light, #f7d070);">Attendance Self Check-In</h5>
+            </div>
+
+            <!-- Service Info Badge -->
+            <div class="d-inline-block mx-auto mb-4 service-badge px-4 py-2 rounded-pill">
+                <h4 class="fw-bold mb-0" style="color: #ffffff;">{{ session.service_type }}</h4>
+                <small class="font-monospace text-gold-light" style="color: var(--gold-light, #f7d070);"><i class="fa-regular fa-calendar me-1"></i> {{ session.date|date:"F d, Y" }}</small>
+            </div>
+
+            <!-- QR Code Frame -->
+            <div class="my-3">
+                <div class="qr-frame">
+                    <img src="data:image/png;base64,{{ qr_b64 }}" alt="Attendance Registration QR Code" class="img-fluid" style="max-width: 270px; width: 100%;">
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="mt-4 mb-2">
+                <h5 class="fw-bold mb-2" style="color: var(--gold-light, #f7d070);">
+                    <i class="fa-solid fa-qrcode me-2"></i>Scan to Register Attendance
+                </h5>
+                <p class="text-light text-opacity-75 mb-0 mx-auto" style="max-width: 500px;">
+                    Open your smartphone camera or QR reader app, scan the QR code above, and enter your <strong>Membership ID</strong> (e.g. <code>RACI26/001</code>) to mark your attendance as PRESENT.
+                </p>
+            </div>
+
+            <hr class="my-4" style="border-color: rgba(212, 175, 55, 0.25);">
+
+            <!-- URL Link fallback -->
+            <div class="small text-light text-opacity-75">
+                <span>Or visit directly: </span>
+                <a href="{{ checkin_url }}" class="text-decoration-underline text-break font-monospace fw-semibold" style="color: var(--gold-light, #f7d070);">{{ checkin_url }}</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
