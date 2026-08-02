@@ -38,7 +38,7 @@ ALLOWED_HOSTS = [
 
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://school-management-production.up.railway.app",
+    "https://churchsystem-production-ff2a.up.railway.app",
 ]
 
 
