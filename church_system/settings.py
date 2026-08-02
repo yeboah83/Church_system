@@ -30,11 +30,12 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-*l6w-8fs!xu(l*b^lqltaryof!(oxcl^jkb4ooap6bqqaway8-')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
+DEBUG = os.getenv('DEBUG', 'false').lower() in ('false', '1', 't')
 
 ALLOWED_HOSTS = [
-    "school-management-production.up.railway.app",
+    "churchsystem-production-ff2a.up.railway.app",
 ]
+
 
 CSRF_TRUSTED_ORIGINS = [
     "https://school-management-production.up.railway.app",
