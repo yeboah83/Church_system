@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 load_dotenv()
 import dj_database_url
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,16 +29,12 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-*l6w-8fs!xu(l*b^lqltaryof!(oxcl^jkb4ooap6bqqaway8-')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'false').lower() in ('false', '1', 't')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = [
-    "churchsystem-production-ff2a.up.railway.app",
-]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://churchsystem-production-ff2a.up.railway.app",
-]
+raw_csrf = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.railway.app,https://*.up.railway.app,http://localhost,http://127.0.0.1')
+CSRF_TRUSTED_ORIGINS = [c.strip() for c in raw_csrf.split(',') if c.strip()]
 
 
 # Application definition
@@ -88,10 +83,21 @@ WSGI_APPLICATION = 'church_system.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-if os.getenv("MYSQL_URL"):
+
+USE_SQLITE = os.getenv('USE_SQLITE', 'False').lower() in ('true', '1', 't')
+db_url = os.getenv("MYSQL_URL") or os.getenv("DATABASE_URL")
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+elif db_url:
     DATABASES = {
         'default': dj_database_url.config(
-            default=os.getenv("MYSQL_URL"),
+            default=db_url,
             conn_max_age=600,
             conn_health_checks=True,
         )
@@ -99,15 +105,15 @@ if os.getenv("MYSQL_URL"):
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.mysql',
+            'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.mysql'),
             'NAME': os.getenv('DB_NAME'),
             'USER': os.getenv('DB_USER'),
             'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
+            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DB_PORT', '3306'),
             'OPTIONS': {
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            }
+            } if os.getenv('DB_ENGINE', 'django.db.backends.mysql') == 'django.db.backends.mysql' else {}
         }
     }
 

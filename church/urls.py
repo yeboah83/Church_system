@@ -13,19 +13,19 @@ urlpatterns = [
     # Members
     path('members/', views.member_list, name='member_list'),
     path('members/add/', views.member_create, name='member_create'),
-    path('members/<str:pk>/edit/', views.member_update, name='member_update'),
-    path('members/<str:pk>/delete/', views.member_delete, name='member_delete'),
-    path('members/<str:pk>/', views.member_profile, name='member_profile'),
-    path('members/<str:pk>/card/', views.member_card_print, name='member_card_print'),
-    path('members/<str:pk>/card/pdf/', views.download_member_card_pdf, name='download_member_card_pdf'),
     path('members/export/excel/', views.export_members_excel, name='export_members_excel'),
     path('members/export/pdf/', views.export_members_pdf, name='export_members_pdf'),
+    path('members/<path:pk>/edit/', views.member_update, name='member_update'),
+    path('members/<path:pk>/delete/', views.member_delete, name='member_delete'),
+    path('members/<path:pk>/card/pdf/', views.download_member_card_pdf, name='download_member_card_pdf'),
+    path('members/<path:pk>/card/', views.member_card_print, name='member_card_print'),
+    path('members/<path:pk>/', views.member_profile, name='member_profile'),
     
     # Visitors
     path('visitors/', views.visitor_list, name='visitor_list'),
     path('visitors/add/', views.visitor_create, name='visitor_create'),
-    path('visitors/<str:pk>/edit/', views.visitor_update, name='visitor_update'),
-    path('visitors/<str:pk>/delete/', views.visitor_delete, name='visitor_delete'),
+    path('visitors/<path:pk>/edit/', views.visitor_update, name='visitor_update'),
+    path('visitors/<path:pk>/delete/', views.visitor_delete, name='visitor_delete'),
     
     # Attendance
     path('attendance/', views.attendance_list, name='attendance_list'),
