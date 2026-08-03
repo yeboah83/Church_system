@@ -1,8 +1,10 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from .models import (
     Member, Visitor, AttendanceSession, FinanceTransaction, Sermon, Event, Announcement, Department
 )
+from .validators import validate_phone_number, validate_email_address
 
 User = get_user_model()
 
@@ -33,7 +35,7 @@ class MemberForm(BootstrapModelForm):
         model = Member
         fields = [
             'membership_id', 'full_name', 'gender', 'date_of_birth',
-            'phone_number', 'address', 'marital_status', 'baptized',
+            'phone_number', 'email', 'address', 'marital_status', 'baptized',
             'date_joined', 'photo', 'department', 'cell_group', 'status'
         ]
         widgets = {
@@ -47,6 +49,17 @@ class MemberForm(BootstrapModelForm):
             self.fields['membership_id'].widget.attrs['readonly'] = True
             self.fields['membership_id'].help_text = "Membership ID cannot be changed once assigned."
 
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        validate_phone_number(phone)
+        return phone
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            validate_email_address(email)
+        return email
+
 
 class VisitorForm(BootstrapModelForm):
     class Meta:
@@ -55,6 +68,11 @@ class VisitorForm(BootstrapModelForm):
         widgets = {
             'first_visit_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        validate_phone_number(phone)
+        return phone
 
 
 class AttendanceSessionForm(BootstrapModelForm):
@@ -112,8 +130,17 @@ class DepartmentForm(BootstrapModelForm):
 
 
 class CustomUserCreationForm(BootstrapModelForm):
-    password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Enter password'}), required=True, label="Password")
-    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Confirm password'}), required=True, label="Confirm Password")
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'placeholder': 'Enter strong password'}),
+        required=True,
+        label="Password",
+        help_text="Minimum 8 characters, with upper & lower case letters, a digit, and a special character."
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'placeholder': 'Confirm password'}),
+        required=True,
+        label="Confirm Password"
+    )
 
     class Meta:
         model = User
@@ -128,10 +155,28 @@ class CustomUserCreationForm(BootstrapModelForm):
             raise forms.ValidationError("A user with that username already exists.")
         return username
 
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        if phone:
+            validate_phone_number(phone)
+        return phone
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            validate_email_address(email)
+        return email
+
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
         confirm_password = cleaned_data.get("confirm_password")
+        if password:
+            try:
+                validate_password(password)
+            except forms.ValidationError as e:
+                self.add_error('password', e)
+
         if password and confirm_password and password != confirm_password:
             self.add_error('confirm_password', "Passwords do not match.")
         return cleaned_data
@@ -158,12 +203,25 @@ class CustomUserUpdateForm(BootstrapModelForm):
             raise forms.ValidationError("A user with that username already exists.")
         return username
 
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        if phone:
+            validate_phone_number(phone)
+        return phone
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            validate_email_address(email)
+        return email
+
 
 class AdminPasswordChangeForm(forms.Form):
     new_password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Enter new password'}),
         required=True,
-        label="New Password"
+        label="New Password",
+        help_text="Minimum 8 characters, with upper & lower case letters, a digit, and a special character."
     )
     confirm_password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm new password'}),
@@ -175,7 +233,14 @@ class AdminPasswordChangeForm(forms.Form):
         cleaned_data = super().clean()
         new_password = cleaned_data.get("new_password")
         confirm_password = cleaned_data.get("confirm_password")
+        if new_password:
+            try:
+                validate_password(new_password)
+            except forms.ValidationError as e:
+                self.add_error('new_password', e)
+
         if new_password and confirm_password and new_password != confirm_password:
             self.add_error('confirm_password', "Passwords do not match.")
         return cleaned_data
+
 

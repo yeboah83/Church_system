@@ -1,4 +1,5 @@
 import datetime
+import random
 import io
 import base64
 from decimal import Decimal
@@ -13,6 +14,7 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.http import HttpResponse, Http404
 from django.urls import reverse
+from django.utils import timezone
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -38,18 +40,60 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     if request.method == 'POST':
-        u = request.POST.get('username')
-        p = request.POST.get('password')
+        u = request.POST.get('username', '').strip()
+        p = request.POST.get('password', '')
+
+        # Check existing user model for lockout state
+        user_obj = CustomUser.objects.filter(username__iexact=u).first() if u else None
+        if user_obj and user_obj.is_locked_out():
+            remaining_seconds = int((user_obj.lockout_until - timezone.now()).total_seconds())
+            remaining_mins = max(1, (remaining_seconds + 59) // 60)
+            log_activity(request, 'LOGIN', 'Authentication', f"Blocked login attempt for locked-out user '{u}'")
+            messages.error(
+                request,
+                f"Account '{u}' is temporarily locked due to 3 failed login attempts. "
+                f"Please try again in {remaining_mins} minute(s) or contact a Super Admin."
+            )
+            return render(request, 'login.html')
+
         user = authenticate(request, username=u, password=p)
         if user is not None:
+            if user.is_locked_out():
+                remaining_seconds = int((user.lockout_until - timezone.now()).total_seconds())
+                remaining_mins = max(1, (remaining_seconds + 59) // 60)
+                messages.error(
+                    request,
+                    f"Account '{user.username}' is locked out. Please wait {remaining_mins} minute(s)."
+                )
+                return render(request, 'login.html')
+            
+            # Reset lockout tracking on successful login
+            user.reset_lockout()
             login(request, user)
             log_activity(request, 'LOGIN', 'Authentication', f"User '{user.username}' ({user.role}) logged in successfully")
             messages.success(request, f"Welcome back, {user.username}!")
             return redirect('dashboard')
         else:
-            log_activity(request, 'LOGIN', 'Authentication', f"Failed login attempt for username '{u}'")
-            messages.error(request, "Invalid username or password.")
+            if user_obj:
+                user_obj.register_failed_login()
+                if user_obj.is_locked_out():
+                    log_activity(request, 'LOGIN', 'Authentication', f"User '{u}' locked out after 3 failed login attempts")
+                    messages.error(
+                        request,
+                        f"Account '{u}' has been locked for 15 minutes after 3 failed login attempts."
+                    )
+                else:
+                    attempts_left = 3 - user_obj.failed_login_attempts
+                    log_activity(request, 'LOGIN', 'Authentication', f"Failed login attempt for username '{u}' ({user_obj.failed_login_attempts}/3)")
+                    messages.error(
+                        request,
+                        f"Invalid username or password. {attempts_left} attempt(s) remaining before account lockout."
+                    )
+            else:
+                log_activity(request, 'LOGIN', 'Authentication', f"Failed login attempt for non-existent username '{u}'")
+                messages.error(request, "Invalid username or password.")
     return render(request, 'login.html')
+
 
 
 @login_required
@@ -1249,5 +1293,90 @@ def audit_log_list(request):
         'total_count': logs.count(),
     }
     return render(request, 'audit_logs/audit_log_list.html', context)
+
+
+# --- CONTACT & EMAIL VERIFICATION ---
+
+@login_required
+def send_verification_code(request, entity_type, pk, verify_type):
+    """
+    Generates and sets a 6-digit OTP code for Email or Phone verification.
+    entity_type: 'user' or 'member'
+    verify_type: 'email' or 'phone'
+    """
+    code = f"{random.randint(100000, 999999)}"
+    if entity_type == 'user':
+        target = get_object_or_404(CustomUser, pk=pk)
+        target_name = target.username
+        contact_val = target.email if verify_type == 'email' else target.phone_number
+    elif entity_type == 'member':
+        target = get_object_or_404(Member, pk=pk)
+        target_name = target.full_name
+        contact_val = target.email if verify_type == 'email' else target.phone_number
+    else:
+        messages.error(request, "Invalid verification target.")
+        return redirect('dashboard')
+
+    if not contact_val:
+        messages.error(request, f"Cannot verify {verify_type}: No {verify_type} contact detail registered.")
+        return redirect('user_list' if entity_type == 'user' else 'member_list')
+
+    if verify_type == 'email':
+        target.email_verification_code = code
+    else:
+        target.phone_verification_code = code
+    target.save()
+
+    log_activity(request, 'UPDATE', 'Verification', f"Generated {verify_type} verification code for {entity_type} '{target_name}'")
+    messages.info(request, f"Verification code generated for {target_name}'s {verify_type} ({contact_val}). Verification OTP: {code}")
+    
+    return render(request, 'verification.html', {
+        'entity_type': entity_type,
+        'pk': pk,
+        'verify_type': verify_type,
+        'target': target,
+        'target_name': target_name,
+        'contact_val': contact_val,
+        'demo_code': code,
+    })
+
+
+@login_required
+def verify_code(request, entity_type, pk, verify_type):
+    """
+    Validates submitted 6-digit OTP verification code for Email or Phone.
+    """
+    if entity_type == 'user':
+        target = get_object_or_404(CustomUser, pk=pk)
+        redirect_url = 'user_list'
+        target_name = target.username
+    elif entity_type == 'member':
+        target = get_object_or_404(Member, pk=pk)
+        redirect_url = 'member_list'
+        target_name = target.full_name
+    else:
+        messages.error(request, "Invalid verification target.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        submitted_code = request.POST.get('code', '').strip()
+        expected_code = target.email_verification_code if verify_type == 'email' else target.phone_verification_code
+
+        if expected_code and submitted_code == expected_code:
+            if verify_type == 'email':
+                target.is_email_verified = True
+                target.email_verification_code = None
+            else:
+                target.is_phone_verified = True
+                target.phone_verification_code = None
+            target.save()
+            log_activity(request, 'UPDATE', 'Verification', f"Successfully verified {verify_type} for {entity_type} '{target_name}'")
+            messages.success(request, f"Successfully verified {verify_type} for {target_name}!")
+            return redirect(redirect_url)
+        else:
+            messages.error(request, "Invalid verification code. Please check the code and try again.")
+
+    return redirect('send_verification_code', entity_type=entity_type, pk=pk, verify_type=verify_type)
+
 
 

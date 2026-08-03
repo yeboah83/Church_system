@@ -76,17 +76,35 @@
                             </td>
                             <td class="small">
                                 {% if u.email %}
-                                    <div><i class="fa-regular fa-envelope me-1 text-muted"></i>{{ u.email }}</div>
+                                    <div class="d-flex align-items-center gap-1 mb-1">
+                                        <i class="fa-regular fa-envelope text-muted"></i>
+                                        <span>{{ u.email }}</span>
+                                        {% if u.is_email_verified %}
+                                            <span class="badge bg-success bg-opacity-10 text-success ms-1" style="font-size:0.65rem;" title="Email Verified"><i class="fa-solid fa-check-circle"></i> Verified</span>
+                                        {% else %}
+                                            <a href="{% url 'send_verification_code' entity_type='user' pk=u.pk verify_type='email' %}" class="badge bg-warning text-dark ms-1 text-decoration-none" style="font-size:0.65rem;" title="Verify Email">Verify Email</a>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
                                 {% if u.phone_number %}
-                                    <div><i class="fa-solid fa-phone me-1 text-muted"></i>{{ u.phone_number }}</div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <i class="fa-solid fa-phone text-muted"></i>
+                                        <span>{{ u.phone_number }}</span>
+                                        {% if u.is_phone_verified %}
+                                            <span class="badge bg-success bg-opacity-10 text-success ms-1" style="font-size:0.65rem;" title="Phone Verified"><i class="fa-solid fa-check-circle"></i> Verified</span>
+                                        {% else %}
+                                            <a href="{% url 'send_verification_code' entity_type='user' pk=u.pk verify_type='phone' %}" class="badge bg-warning text-dark ms-1 text-decoration-none" style="font-size:0.65rem;" title="Verify Phone">Verify Phone</a>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
                                 {% if not u.email and not u.phone_number %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if u.is_active %}
+                                {% if u.is_locked_out %}
+                                    <span class="badge bg-danger text-white px-2 py-1" title="Account Locked Out"><i class="fa-solid fa-lock me-1"></i>Locked</span>
+                                {% elif u.is_active %}
                                     <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-check me-1"></i>Active</span>
                                 {% else %}
                                     <span class="badge bg-secondary text-white px-2 py-1"><i class="fa-solid fa-ban me-1"></i>Disabled</span>

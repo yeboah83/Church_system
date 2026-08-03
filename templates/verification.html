@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Verify {{ verify_type|title }} - Church Management System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-shield-check me-2"></i>Verify {{ verify_type|title }}
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted text-center">
+                    A 6-digit verification OTP code has been generated for <strong>{{ target_name }}</strong>'s {{ verify_type }}:
+                </p>
+                <div class="alert alert-info text-center py-2 font-monospace fw-bold mb-3">
+                    {{ contact_val }}
+                </div>
+                <div class="alert alert-warning text-center small py-2 mb-4">
+                    <i class="bi bi-info-circle me-1"></i><strong>Verification Code:</strong> <span class="badge bg-dark fs-6 font-monospace">{{ demo_code }}</span>
+                </div>
+
+                <form method="post" action="{% url 'verify_code' entity_type=entity_type pk=pk verify_type=verify_type %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="code" class="form-label font-semibold">Enter 6-Digit OTP Code</label>
+                        <input type="text" name="code" id="code" class="form-control text-center font-monospace fs-4 tracking-wider" maxlength="6" placeholder="123456" required autofocus>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Verify {{ verify_type|title }}
+                        </button>
+                        <a href="{% if entity_type == 'user' %}{% url 'user_list' %}{% else %}{% url 'member_list' %}{% endif %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

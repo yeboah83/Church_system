@@ -1,6 +1,8 @@
 import datetime
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
+from .crypto import encrypt_val, decrypt_val
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
@@ -11,7 +13,49 @@ class CustomUser(AbstractUser):
         ('Department Leader', 'Department Leader'),
     )
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='Secretary')
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    phone_number = models.CharField(max_length=255, blank=True, null=True)
+
+    # Verification and lockout fields
+    is_email_verified = models.BooleanField(default=False)
+    is_phone_verified = models.BooleanField(default=False)
+    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    phone_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    
+    failed_login_attempts = models.IntegerField(default=0)
+    lockout_until = models.DateTimeField(null=True, blank=True)
+
+    def is_locked_out(self):
+        if self.lockout_until and self.lockout_until > timezone.now():
+            return True
+        return False
+
+    def register_failed_login(self):
+        self.failed_login_attempts += 1
+        if self.failed_login_attempts >= 3:
+            self.lockout_until = timezone.now() + datetime.timedelta(minutes=15)
+        self.save(update_fields=['failed_login_attempts', 'lockout_until'])
+
+    def reset_lockout(self):
+        if self.failed_login_attempts > 0 or self.lockout_until is not None:
+            self.failed_login_attempts = 0
+            self.lockout_until = None
+            self.save(update_fields=['failed_login_attempts', 'lockout_until'])
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        if instance.phone_number:
+            instance.phone_number = decrypt_val(instance.phone_number)
+        return instance
+
+    def save(self, *args, **kwargs):
+        raw_phone = self.phone_number
+        if raw_phone:
+            self.phone_number = encrypt_val(raw_phone)
+        try:
+            super().save(*args, **kwargs)
+        finally:
+            self.phone_number = raw_phone
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -57,8 +101,16 @@ class Member(models.Model):
     full_name = models.CharField(max_length=100)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     date_of_birth = models.DateField()
-    phone_number = models.CharField(max_length=15)
+    phone_number = models.CharField(max_length=255)
     address = models.TextField()
+    email = models.EmailField(blank=True, null=True)
+
+    # Verification fields
+    is_email_verified = models.BooleanField(default=False)
+    is_phone_verified = models.BooleanField(default=False)
+    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    phone_verification_code = models.CharField(max_length=6, blank=True, null=True)
+
     marital_status = models.CharField(max_length=20, choices=MARITAL_CHOICES)
     baptized = models.BooleanField(default=False)
     date_joined = models.DateField(default=datetime.date.today)
@@ -84,10 +136,26 @@ class Member(models.Model):
         new_num = last_num + 1
         return f"{prefix}{new_num:03d}"
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance.phone_number = decrypt_val(instance.phone_number)
+        instance.address = decrypt_val(instance.address)
+        return instance
+
     def save(self, *args, **kwargs):
         if not self.membership_id:
             self.membership_id = Member.generate_next_id(self.date_joined)
-        super().save(*args, **kwargs)
+        
+        raw_phone = self.phone_number
+        raw_address = self.address
+        self.phone_number = encrypt_val(raw_phone)
+        self.address = encrypt_val(raw_address)
+        try:
+            super().save(*args, **kwargs)
+        finally:
+            self.phone_number = raw_phone
+            self.address = raw_address
 
     def __str__(self):
         return f"{self.full_name} ({self.membership_id})"
@@ -96,10 +164,17 @@ class Member(models.Model):
 class Visitor(models.Model):
     visitor_id = models.CharField(max_length=30, unique=True, primary_key=True)
     name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=15)
+    phone = models.CharField(max_length=255)
     address = models.TextField()
     invited_by = models.CharField(max_length=100, blank=True)
     first_visit_date = models.DateField(default=datetime.date.today)
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance.phone = decrypt_val(instance.phone)
+        instance.address = decrypt_val(instance.address)
+        return instance
 
     def save(self, *args, **kwargs):
         if not self.visitor_id:
@@ -115,7 +190,16 @@ class Visitor(models.Model):
             else:
                 new_num = 1
             self.visitor_id = f"{prefix}{new_num:04d}"
-        super().save(*args, **kwargs)
+
+        raw_phone = self.phone
+        raw_address = self.address
+        self.phone = encrypt_val(raw_phone)
+        self.address = encrypt_val(raw_address)
+        try:
+            super().save(*args, **kwargs)
+        finally:
+            self.phone = raw_phone
+            self.address = raw_address
 
     def __str__(self):
         return f"{self.name} ({self.visitor_id})"

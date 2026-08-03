@@ -94,7 +94,14 @@
                                 <small class="text-muted">{{ m.membership_id }}</small>
                             </td>
                             <td>{{ m.gender }}</td>
-                            <td>{{ m.phone_number }}</td>
+                            <td>
+                                {{ m.phone_number }}
+                                {% if m.is_phone_verified %}
+                                    <span class="badge bg-success bg-opacity-10 text-success ms-1" style="font-size:0.65rem;" title="Phone Verified"><i class="fa-solid fa-check-circle"></i> Verified</span>
+                                {% else %}
+                                    <a href="{% url 'send_verification_code' entity_type='member' pk=m.pk verify_type='phone' %}" class="badge bg-warning text-dark ms-1 text-decoration-none" style="font-size:0.65rem;" title="Verify Phone">Verify</a>
+                                {% endif %}
+                            </td>
                             <td><span class="badge bg-light text-secondary border">{{ m.department.name|default:"General" }}</span></td>
                             <td>{{ m.cell_group|default:"-" }}</td>
                             <td>
