@@ -80,6 +80,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'church_system.wsgi.application'
 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 7200  # 1 hour
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
