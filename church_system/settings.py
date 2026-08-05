@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 import dj_database_url
+from csp.constants import SELF, NONE
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +38,20 @@ raw_csrf = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.railway.app,https://*.up
 CSRF_TRUSTED_ORIGINS = [c.strip() for c in raw_csrf.split(',') if c.strip()]
 
 
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": [SELF],
+        "script-src": [SELF],
+        "style-src": [SELF, "'unsafe-inline'"],
+        "img-src": [SELF, "data:"],
+        "font-src": [SELF, "data:"],
+        "connect-src": [SELF],
+        "object-src": [NONE],
+        "base-uri": [SELF],
+        "form-action": [SELF],
+        "frame-ancestors": [SELF],
+    },
+}
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,11 +61,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'church.apps.ChurchConfig',  # Register our church management app
-]
+    'church.apps.ChurchConfig',
+    'csp', # Register our church management app
+] 
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
