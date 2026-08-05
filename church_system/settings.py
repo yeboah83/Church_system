@@ -41,10 +41,10 @@ CSRF_TRUSTED_ORIGINS = [c.strip() for c in raw_csrf.split(',') if c.strip()]
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": [SELF],
-        "script-src": [SELF],
-        "style-src": [SELF, "'unsafe-inline'"],
-        "img-src": [SELF, "data:"],
-        "font-src": [SELF, "data:"],
+        "script-src": [SELF, "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
+        "style-src": [SELF, "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+        "img-src": [SELF, "data:", "https:"],
+        "font-src": [SELF, "data:", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
         "connect-src": [SELF],
         "object-src": [NONE],
         "base-uri": [SELF],
