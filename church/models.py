@@ -24,6 +24,32 @@ class CustomUser(AbstractUser):
     failed_login_attempts = models.IntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
 
+    # Soft-deletion and 3-month retention fields
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    scheduled_deletion_date = models.DateTimeField(null=True, blank=True)
+
+    def soft_delete(self):
+        self.is_deleted = True
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.scheduled_deletion_date = timezone.now() + datetime.timedelta(days=90)
+        self.save(update_fields=['is_deleted', 'is_active', 'deleted_at', 'scheduled_deletion_date'])
+
+    def restore_account(self):
+        self.is_deleted = False
+        self.is_active = True
+        self.deleted_at = None
+        self.scheduled_deletion_date = None
+        self.save(update_fields=['is_deleted', 'is_active', 'deleted_at', 'scheduled_deletion_date'])
+
+    @property
+    def days_until_permanent_deletion(self):
+        if self.scheduled_deletion_date:
+            delta = self.scheduled_deletion_date - timezone.now()
+            return max(0, delta.days)
+        return 90
+
     def is_locked_out(self):
         if self.lockout_until and self.lockout_until > timezone.now():
             return True

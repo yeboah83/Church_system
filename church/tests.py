@@ -285,6 +285,53 @@ class QRAttendanceTests(TestCase):
         self.assertContains(response, "No member found matching")
 
 
+class UserRetentionTestCase(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser('superadmin', 'admin@test.com', 'adminpass', role='Super Admin')
+        self.user = User.objects.create_user('teststaff', 'staff@test.com', 'staffpass', role='Secretary')
+
+    def test_soft_delete_user(self):
+        self.client.login(username='superadmin', password='adminpass')
+        response = self.client.post(reverse('user_delete', kwargs={'pk': self.user.pk}))
+        self.assertEqual(response.status_code, 302)
+        
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_deleted)
+        self.assertFalse(self.user.is_active)
+        self.assertIsNotNone(self.user.deleted_at)
+        self.assertIsNotNone(self.user.scheduled_deletion_date)
+
+    def test_soft_deleted_user_cannot_login(self):
+        self.user.soft_delete()
+        response = self.client.post(reverse('login'), {'username': 'teststaff', 'password': 'staffpass'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "deactivated and pending permanent deletion")
+
+    def test_restore_soft_deleted_user(self):
+        self.user.soft_delete()
+        self.client.login(username='superadmin', password='adminpass')
+        response = self.client.post(reverse('user_restore', kwargs={'pk': self.user.pk}))
+        self.assertEqual(response.status_code, 302)
+        
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_deleted)
+        self.assertTrue(self.user.is_active)
+        self.assertIsNone(self.user.deleted_at)
+        self.assertIsNone(self.user.scheduled_deletion_date)
+
+    def test_purge_deleted_users_command(self):
+        self.user.soft_delete()
+        # Set scheduled deletion date in the past
+        self.user.scheduled_deletion_date = timezone.now() - datetime.timedelta(days=1)
+        self.user.save()
+
+        from django.core.management import call_command
+        call_command('purge_deleted_users')
+
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+
+
+
 
 
 

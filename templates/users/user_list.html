@@ -10,10 +10,22 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
         <h3 class="fw-bold mb-0">System Users & Accounts</h3>
-        <p class="text-secondary small mb-0">Manage staff user accounts, roles, access permissions, and passwords.</p>
+        <p class="text-secondary small mb-0">Manage staff user accounts, roles, access permissions, and 3-month account retention policy.</p>
     </div>
-    <a href="{% url 'user_create' %}" class="btn btn-premium">
-        <i class="fa-solid fa-user-plus me-1"></i> Add New User
+    <div class="d-flex gap-2">
+        <a href="{% url 'user_create' %}" class="btn btn-premium">
+            <i class="fa-solid fa-user-plus me-1"></i> Add New User
+        </a>
+    </div>
+</div>
+
+<!-- Status Filter Tabs -->
+<div class="d-flex gap-2 mb-3">
+    <a href="{% url 'user_list' %}" class="btn btn-sm {% if not show_deleted %}btn-indigo text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 fw-semibold">
+        <i class="fa-solid fa-user-check me-1"></i> Active Accounts ({{ active_count }})
+    </a>
+    <a href="{% url 'user_list' %}?status=deleted" class="btn btn-sm {% if show_deleted %}btn-danger text-white{% else %}btn-outline-danger{% endif %} rounded-pill px-3 fw-semibold">
+        <i class="fa-solid fa-user-clock me-1"></i> Retention Hold ({{ deleted_count }})
     </a>
 </div>
 
@@ -21,10 +33,11 @@
 <div class="card-premium overflow-hidden">
     <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
         <h5 class="fw-bold mb-0">
-            <i class="fa-solid fa-users-gear me-2 text-indigo" style="color: var(--accent-color);"></i>Registered System Users
+            <i class="fa-solid fa-users-gear me-2 text-indigo" style="color: var(--accent-color);"></i>
+            {% if show_deleted %}Accounts Scheduled for Deletion (3-Month Retention Hold){% else %}Registered Active Users{% endif %}
         </h5>
         <span class="badge bg-indigo bg-opacity-10 text-indigo px-3 py-2" style="font-size: 0.8rem;">
-            Total: {{ users|length }} User(s)
+            Total: {{ users|length }} Account(s)
         </span>
     </div>
 
@@ -36,18 +49,18 @@
                     <th scope="col">Full Name</th>
                     <th scope="col">Role</th>
                     <th scope="col">Contact</th>
-                    <th scope="col">Status</th>
+                    <th scope="col">Status & Retention</th>
                     <th scope="col" class="text-end pe-4">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% if users %}
                     {% for u in users %}
-                        <tr>
+                        <tr class="{% if u.is_deleted %}table-warning bg-opacity-10{% endif %}">
                             <td class="ps-4 fw-bold">
                                 <div class="d-flex align-items-center">
-                                    <div class="rounded-circle bg-indigo bg-opacity-10 text-indigo d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;">
-                                        <i class="fa-solid fa-user-shield"></i>
+                                    <div class="rounded-circle {% if u.is_deleted %}bg-warning text-dark{% else %}bg-indigo text-indigo{% endif %} bg-opacity-10 d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;">
+                                        <i class="fa-solid {% if u.is_deleted %}fa-user-clock{% else %}fa-user-shield{% endif %}"></i>
                                     </div>
                                     <div>
                                         <span class="d-block">{{ u.username }}</span>
@@ -102,7 +115,12 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if u.is_locked_out %}
+                                {% if u.is_deleted %}
+                                    <span class="badge bg-warning text-dark px-2.5 py-1 mb-1 d-inline-block" title="Scheduled for permanent purge">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i>Pending Deletion ({{ u.days_until_permanent_deletion }} days left)
+                                    </span>
+                                    <small class="d-block text-muted font-monospace" style="font-size: 0.72rem;">Purge Date: {{ u.scheduled_deletion_date|date:"Y-m-d" }}</small>
+                                {% elif u.is_locked_out %}
                                     <span class="badge bg-danger text-white px-2 py-1" title="Account Locked Out"><i class="fa-solid fa-lock me-1"></i>Locked</span>
                                 {% elif u.is_active %}
                                     <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-check me-1"></i>Active</span>
@@ -111,19 +129,28 @@
                                 {% endif %}
                             </td>
                             <td class="text-end pe-4">
-                                <div class="btn-group gap-1">
-                                    <a href="{% url 'user_update' pk=u.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit User Info" style="border-radius: 6px;">
-                                        <i class="fa-regular fa-pen-to-square me-1"></i> Edit
-                                    </a>
-                                    <a href="{% url 'user_change_password' pk=u.pk %}" class="btn btn-sm btn-outline-warning" title="Change Password" style="border-radius: 6px;">
-                                        <i class="fa-solid fa-key me-1"></i> Password
-                                    </a>
-                                    {% if u != request.user %}
-                                    <a href="{% url 'user_delete' pk=u.pk %}" class="btn btn-sm btn-outline-danger" title="Delete User" style="border-radius: 6px;">
-                                        <i class="fa-regular fa-trash-can"></i>
-                                    </a>
-                                    {% endif %}
-                                </div>
+                                {% if u.is_deleted %}
+                                    <form method="POST" action="{% url 'user_restore' pk=u.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to restore and reactivate user account {{ u.username }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success px-3" title="Restore Account">
+                                            <i class="fa-solid fa-trash-can-arrow-up me-1"></i> Restore Account
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <div class="btn-group gap-1">
+                                        <a href="{% url 'user_update' pk=u.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit User Info" style="border-radius: 6px;">
+                                            <i class="fa-regular fa-pen-to-square me-1"></i> Edit
+                                        </a>
+                                        <a href="{% url 'user_change_password' pk=u.pk %}" class="btn btn-sm btn-outline-warning" title="Change Password" style="border-radius: 6px;">
+                                            <i class="fa-solid fa-key me-1"></i> Password
+                                        </a>
+                                        {% if u != request.user %}
+                                        <a href="{% url 'user_delete' pk=u.pk %}" class="btn btn-sm btn-outline-danger" title="Deactivate & Hold 3 Months" style="border-radius: 6px;">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
@@ -131,7 +158,7 @@
                     <tr>
                         <td colspan="6" class="text-center py-5 text-muted">
                             <i class="fa-regular fa-folder-open fs-2 mb-2"></i>
-                            <p class="mb-0">No users found.</p>
+                            <p class="mb-0">No users found in this view.</p>
                         </td>
                     </tr>
                 {% endif %}

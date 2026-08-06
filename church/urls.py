@@ -71,6 +71,7 @@ urlpatterns = [
     path('users/<int:pk>/edit/', views.user_update, name='user_update'),
     path('users/<int:pk>/password/', views.user_change_password, name='user_change_password'),
     path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
+    path('users/<int:pk>/restore/', views.user_restore, name='user_restore'),
     # Audit Logs
     path('audit-logs/', views.audit_log_list, name='audit_log_list'),
     path('audit-logs/export-csv/', views.export_audit_logs_csv, name='export_audit_logs_csv'),

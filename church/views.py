@@ -44,8 +44,19 @@ def login_view(request):
         u = request.POST.get('username', '').strip()
         p = request.POST.get('password', '')
 
-        # Check existing user model for lockout state
+        # Check existing user model for lockout state or soft-deletion
         user_obj = CustomUser.objects.filter(username__iexact=u).first() if u else None
+        if user_obj and user_obj.is_deleted:
+            scheduled_date = user_obj.scheduled_deletion_date.strftime('%Y-%m-%d') if user_obj.scheduled_deletion_date else 'in 3 months'
+            days_left = user_obj.days_until_permanent_deletion
+            log_activity(request, 'LOGIN', 'Authentication', f"Blocked login attempt for soft-deleted user '{u}' (scheduled for purge in {days_left} days)")
+            messages.error(
+                request,
+                f"Account '{u}' is deactivated and pending permanent deletion on {scheduled_date} ({days_left} days remaining). "
+                "Contact a Super Admin to restore your account before the 3-month retention period expires."
+            )
+            return render(request, 'login.html')
+
         if user_obj and user_obj.is_locked_out():
             remaining_seconds = int((user_obj.lockout_until - timezone.now()).total_seconds())
             remaining_mins = max(1, (remaining_seconds + 59) // 60)
@@ -1201,8 +1212,21 @@ def export_finance_report(request):
 @login_required
 @role_required(['Super Admin'])
 def user_list(request):
-    users = CustomUser.objects.all().order_by('username')
-    return render(request, 'users/user_list.html', {'users': users})
+    show_deleted = request.GET.get('status', '') == 'deleted'
+    if show_deleted:
+        users = CustomUser.objects.filter(is_deleted=True).order_by('-deleted_at')
+    else:
+        users = CustomUser.objects.filter(is_deleted=False).order_by('username')
+    
+    active_count = CustomUser.objects.filter(is_deleted=False).count()
+    deleted_count = CustomUser.objects.filter(is_deleted=True).count()
+
+    return render(request, 'users/user_list.html', {
+        'users': users,
+        'show_deleted': show_deleted,
+        'active_count': active_count,
+        'deleted_count': deleted_count,
+    })
 
 
 @login_required
@@ -1271,16 +1295,43 @@ def user_delete(request, pk):
     
     if request.method == 'POST':
         username = target_user.username
-        target_user.delete()
-        log_activity(request, 'DELETE', 'User Management', f"Deleted user account '{username}' (ID: {pk})")
-        messages.success(request, f"User '{username}' has been deleted.")
+        target_user.soft_delete()
+        scheduled_str = target_user.scheduled_deletion_date.strftime('%Y-%m-%d')
+        log_activity(
+            request,
+            'DELETE',
+            'User Management',
+            f"User account '{username}' (ID: {pk}) deactivated and scheduled for permanent deletion in 3 months (on {scheduled_str})"
+        )
+        messages.success(
+            request,
+            f"User account '{username}' has been deactivated and scheduled for permanent deletion on {scheduled_str}. "
+            "All account data will be retained for 3 months and can be restored at any time prior."
+        )
         return redirect('user_list')
     
     return render(request, 'confirm_delete.html', {
         'object': target_user,
-        'type': 'User',
+        'type': 'User Account (3-Month Retention Hold)',
         'cancel_url': 'user_list'
     })
+
+
+@login_required
+@role_required(['Super Admin'])
+def user_restore(request, pk):
+    target_user = get_object_or_404(CustomUser, pk=pk, is_deleted=True)
+    if request.method == 'POST':
+        username = target_user.username
+        target_user.restore_account()
+        log_activity(
+            request,
+            'UPDATE',
+            'User Management',
+            f"Restored soft-deleted user account '{username}' (ID: {pk}) from 3-month retention hold"
+        )
+        messages.success(request, f"User account '{username}' has been successfully restored and reactivated.")
+    return redirect('user_list')
 
 
 @login_required
