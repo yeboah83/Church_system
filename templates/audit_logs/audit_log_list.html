@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Audit Logs - CMS{% endblock %}
+{% block title %}Audit & Security Logs - CMS{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item active" aria-current="page">Audit Log</li>
@@ -10,27 +10,79 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-        <h3 class="fw-bold mb-0"><i class="fa-solid fa-shield-halved text-indigo me-2" style="color: var(--accent-color);"></i>System Activity Audit Log</h3>
-        <p class="text-secondary small mb-0">Track and inspect all operations, logins, and data changes across the application.</p>
+        <h3 class="fw-bold mb-0">
+            <i class="fa-solid fa-shield-halved me-2 text-indigo" style="color: var(--accent-color);"></i>System Activity Audit & Security Log
+        </h3>
+        <p class="text-secondary small mb-0">Real-time surveillance of user movements, authentication events, security alerts, and data operations across the system.</p>
     </div>
-    <div>
-        <span class="badge bg-indigo-subtle text-indigo px-3 py-2 rounded-pill fw-semibold" style="background: rgba(99, 102, 241, 0.1); color: var(--accent-color);">
-            <i class="fa-solid fa-list-check me-1"></i> {{ total_count }} Log Entries
-        </span>
+    <div class="d-flex gap-2 align-items-center">
+        <a href="{% url 'export_audit_logs_csv' %}?q={{ query }}&module={{ module_filter }}&action={{ action_filter }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-outline-success fw-semibold" title="Export current audit logs view to CSV">
+            <i class="fa-solid fa-file-csv me-1.5"></i> Export CSV
+        </a>
+    </div>
+</div>
+
+<!-- Metrics Cards Row -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-3 border-0 shadow-sm d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-indigo bg-opacity-10 text-indigo p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; color: var(--accent-color);">
+                <i class="fa-solid fa-list-check fs-4"></i>
+            </div>
+            <div>
+                <span class="text-muted small fw-semibold text-uppercase d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Logs</span>
+                <h4 class="fw-bold mb-0 text-dark">{{ total_count }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-3 border-0 shadow-sm d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-danger bg-opacity-10 text-danger p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                <i class="fa-solid fa-user-shield fs-4"></i>
+            </div>
+            <div>
+                <span class="text-muted small fw-semibold text-uppercase d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Security Alerts</span>
+                <h4 class="fw-bold mb-0 text-danger">{{ security_alerts_count }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-3 border-0 shadow-sm d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-warning bg-opacity-10 text-warning p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                <i class="fa-solid fa-lock fs-4"></i>
+            </div>
+            <div>
+                <span class="text-muted small fw-semibold text-uppercase d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Failed Logins</span>
+                <h4 class="fw-bold mb-0 text-warning">{{ failed_logins_count }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-3 border-0 shadow-sm d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-success bg-opacity-10 text-success p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                <i class="fa-solid fa-file-export fs-4"></i>
+            </div>
+            <div>
+                <span class="text-muted small fw-semibold text-uppercase d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Data Exports</span>
+                <h4 class="fw-bold mb-0 text-success">{{ exports_count }}</h4>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Search & Filter Card -->
 <div class="card-premium p-4 mb-4">
     <form method="GET" class="row g-3 align-items-center">
-        <div class="col-12 col-md-5">
+        <div class="col-12 col-md-4">
+            <label class="form-label text-muted small fw-semibold mb-1">Search Keywords</label>
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by user, description or IP..." value="{{ query }}">
+                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by user, IP, action or description..." value="{{ query }}">
             </div>
         </div>
         
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-2">
+            <label class="form-label text-muted small fw-semibold mb-1">Module</label>
             <select name="module" class="form-select">
                 <option value="">All Modules</option>
                 {% for m in modules %}
@@ -40,6 +92,7 @@
         </div>
 
         <div class="col-6 col-md-2">
+            <label class="form-label text-muted small fw-semibold mb-1">Action Type</label>
             <select name="action" class="form-select">
                 <option value="">All Actions</option>
                 {% for a in actions %}
@@ -48,10 +101,20 @@
             </select>
         </div>
 
-        <div class="col-12 col-md-2 d-flex gap-2">
-            <button type="submit" class="btn btn-premium w-100"><i class="fa-solid fa-filter me-1"></i> Filter</button>
-            {% if query or module_filter or action_filter %}
-                <a href="{% url 'audit_log_list' %}" class="btn btn-outline-secondary" title="Reset Filters"><i class="fa-solid fa-rotate-left"></i></a>
+        <div class="col-6 col-md-2">
+            <label class="form-label text-muted small fw-semibold mb-1">From Date</label>
+            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+        </div>
+
+        <div class="col-6 col-md-2">
+            <label class="form-label text-muted small fw-semibold mb-1">To Date</label>
+            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+            <button type="submit" class="btn btn-premium px-4"><i class="fa-solid fa-filter me-1.5"></i> Apply Filters</button>
+            {% if query or module_filter or action_filter or date_from or date_to %}
+                <a href="{% url 'audit_log_list' %}" class="btn btn-outline-secondary px-3" title="Reset Filters"><i class="fa-solid fa-rotate-left me-1"></i> Reset</a>
             {% endif %}
         </div>
     </form>
@@ -63,67 +126,79 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th scope="col" class="ps-4" style="font-size: 0.85rem;">Timestamp</th>
-                    <th scope="col" style="font-size: 0.85rem;">User</th>
-                    <th scope="col" style="font-size: 0.85rem;">Action</th>
-                    <th scope="col" style="font-size: 0.85rem;">Module</th>
-                    <th scope="col" style="font-size: 0.85rem;">Description</th>
-                    <th scope="col" class="pe-4 text-end" style="font-size: 0.85rem;">IP Address</th>
+                    <th scope="col" class="ps-4" style="font-size: 0.82rem;">Timestamp</th>
+                    <th scope="col" style="font-size: 0.82rem;">User Account</th>
+                    <th scope="col" style="font-size: 0.82rem;">Action</th>
+                    <th scope="col" style="font-size: 0.82rem;">Module</th>
+                    <th scope="col" style="font-size: 0.82rem;">Description</th>
+                    <th scope="col" style="font-size: 0.82rem;">IP Address</th>
+                    <th scope="col" class="pe-4 text-end" style="font-size: 0.82rem;">Details</th>
                 </tr>
             </thead>
             <tbody>
                 {% if logs %}
                     {% for log in logs %}
-                        <tr>
+                        <tr class="{% if log.action_type == 'SECURITY' or log.action_type == 'ACCESS_DENIED' %}table-danger bg-opacity-10{% endif %}">
                             <td class="ps-4 text-secondary small font-monospace" style="font-size: 0.82rem;">
                                 <i class="fa-regular fa-clock me-1 text-muted"></i>{{ log.timestamp|date:"Y-m-d H:i:s" }}
                             </td>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <div class="rounded-circle bg-indigo bg-opacity-10 d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; color: var(--accent-color); font-size: 0.85rem;">
-                                        <i class="fa-solid fa-user"></i>
+                                    <div class="rounded-circle {% if log.action_type == 'ACCESS_DENIED' or log.action_type == 'SECURITY' %}bg-danger text-danger{% else %}bg-indigo text-indigo{% endif %} bg-opacity-10 d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                        <i class="fa-solid {% if log.user %}fa-user-check{% else %}fa-user-secret{% endif %}"></i>
                                     </div>
                                     <div>
                                         <span class="fw-semibold text-dark d-block" style="font-size: 0.88rem;">{{ log.user_display }}</span>
-                                        {% if log.user %}
-                                            <span class="text-muted small" style="font-size: 0.72rem;">Role: {{ log.user.role }}</span>
-                                        {% endif %}
+                                        <span class="text-muted small" style="font-size: 0.72rem;">Role: {{ log.user.role|default:"System / Guest" }}</span>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 {% if log.action_type == 'CREATE' %}
-                                    <span class="badge bg-success bg-opacity-10 text-success px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-plus me-1"></i>CREATE</span>
+                                    <span class="badge bg-success bg-opacity-10 text-success px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-plus me-1"></i>CREATE</span>
                                 {% elif log.action_type == 'UPDATE' %}
-                                    <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-pen me-1"></i>UPDATE</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-pen me-1"></i>UPDATE</span>
                                 {% elif log.action_type == 'DELETE' %}
-                                    <span class="badge bg-danger bg-opacity-10 text-danger px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-trash me-1"></i>DELETE</span>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-trash me-1"></i>DELETE</span>
                                 {% elif log.action_type == 'LOGIN' %}
-                                    <span class="badge bg-info bg-opacity-10 text-info px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>LOGIN</span>
+                                    <span class="badge bg-info bg-opacity-10 text-info px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>LOGIN</span>
                                 {% elif log.action_type == 'LOGOUT' %}
-                                    <span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>LOGOUT</span>
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>LOGOUT</span>
                                 {% elif log.action_type == 'EXPORT' %}
-                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2.5 py-1" style="font-size: 0.72rem;"><i class="fa-solid fa-file-export me-1"></i>EXPORT</span>
+                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-file-export me-1"></i>EXPORT</span>
+                                {% elif log.action_type == 'SECURITY' %}
+                                    <span class="badge bg-danger text-white px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>SECURITY</span>
+                                {% elif log.action_type == 'ACCESS_DENIED' %}
+                                    <span class="badge bg-danger text-white px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-ban me-1"></i>DENIED</span>
+                                {% elif log.action_type == 'VERIFY' %}
+                                    <span class="badge bg-info bg-opacity-10 text-info px-2.5 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-circle-check me-1"></i>VERIFY</span>
                                 {% else %}
-                                    <span class="badge bg-dark bg-opacity-10 text-dark px-2.5 py-1" style="font-size: 0.72rem;">{{ log.action_type }}</span>
+                                    <span class="badge bg-dark bg-opacity-10 text-dark px-2.5 py-1" style="font-size: 0.75rem;">{{ log.action_type }}</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.78rem;">{{ log.module }}</span>
+                                <span class="badge bg-light text-dark border px-2.5 py-1" style="font-size: 0.78rem;">{{ log.module }}</span>
                             </td>
-                            <td class="text-secondary" style="font-size: 0.88rem; max-width: 350px;">
+                            <td class="text-secondary" style="font-size: 0.88rem; max-width: 380px;">
                                 {{ log.description }}
                             </td>
-                            <td class="pe-4 text-end text-muted small font-monospace" style="font-size: 0.8rem;">
-                                {{ log.ip_address|default:"127.0.0.1" }}
+                            <td class="text-muted small font-monospace" style="font-size: 0.8rem;">
+                                <i class="fa-solid fa-network-wired me-1 opacity-50"></i>{{ log.ip_address|default:"127.0.0.1" }}
+                            </td>
+                            <td class="pe-4 text-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary" style="font-size: 0.78rem; border-radius: 6px;" 
+                                        onclick="showAuditModal('{{ log.id }}', '{{ log.timestamp|date:"Y-m-d H:i:s" }}', '{{ log.user_display|escapejs }}', '{{ log.user.role|default:"System"|escapejs }}', '{{ log.action_type|escapejs }}', '{{ log.module|escapejs }}', '{{ log.ip_address|default:"127.0.0.1"|escapejs }}', '{{ log.description|escapejs }}')">
+                                    <i class="fa-solid fa-eye me-1"></i> Inspect
+                                </button>
                             </td>
                         </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
-                            <i class="fa-solid fa-shield-cat fs-2 mb-2"></i>
-                            <p class="mb-0">No audit logs matching your criteria.</p>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-shield-cat fs-1 mb-3 text-secondary opacity-50"></i>
+                            <h5>No audit logs found</h5>
+                            <p class="mb-0 text-muted">No records match your selected criteria or search term.</p>
                         </td>
                     </tr>
                 {% endif %}
@@ -131,4 +206,92 @@
         </table>
     </div>
 </div>
+
+<!-- Audit Log Detail Modal -->
+<div class="modal fade" id="auditDetailModal" tabindex="-1" aria-labelledby="auditDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-premium border-0 overflow-hidden">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark" id="auditDetailModalLabel">
+                    <i class="fa-solid fa-shield-halved me-2 text-indigo" style="color: var(--accent-color);"></i>Audit Record Inspection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <span class="text-muted small d-block">Log ID</span>
+                        <span class="fw-bold text-dark font-monospace" id="modalLogId">#0</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted small d-block">Timestamp</span>
+                        <span class="fw-semibold text-dark font-monospace" id="modalTimestamp">-</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted small d-block">User Account</span>
+                        <span class="fw-bold text-dark" id="modalUser">-</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted small d-block">User Role</span>
+                        <span class="badge bg-secondary bg-opacity-10 text-dark" id="modalRole">-</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted small d-block">Action Classification</span>
+                        <span id="modalActionBadge">-</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted small d-block">Module</span>
+                        <span class="badge bg-light text-dark border" id="modalModule">-</span>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-muted small d-block">IP Address / Terminal</span>
+                        <span class="font-monospace text-dark" id="modalIp">-</span>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-muted small d-block mb-1">Full Activity Description</span>
+                        <div class="p-3 bg-light rounded-3 border text-dark font-monospace small" id="modalDescription">
+                            -
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAuditModal(id, timestamp, user, role, action, module, ip, description) {
+    document.getElementById('modalLogId').innerText = '#' + id;
+    document.getElementById('modalTimestamp').innerText = timestamp;
+    document.getElementById('modalUser').innerText = user;
+    document.getElementById('modalRole').innerText = role;
+    document.getElementById('modalModule').innerText = module;
+    document.getElementById('modalIp').innerText = ip;
+    document.getElementById('modalDescription').innerText = description;
+
+    const actionBadge = document.getElementById('modalActionBadge');
+    actionBadge.className = 'badge px-2.5 py-1';
+    
+    if (action === 'CREATE') {
+        actionBadge.className = 'badge bg-success bg-opacity-10 text-success';
+    } else if (action === 'UPDATE') {
+        actionBadge.className = 'badge bg-primary bg-opacity-10 text-primary';
+    } else if (action === 'DELETE') {
+        actionBadge.className = 'badge bg-danger bg-opacity-10 text-danger';
+    } else if (action === 'SECURITY' || action === 'ACCESS_DENIED') {
+        actionBadge.className = 'badge bg-danger text-white';
+    } else if (action === 'EXPORT') {
+        actionBadge.className = 'badge bg-warning bg-opacity-10 text-warning';
+    } else {
+        actionBadge.className = 'badge bg-info bg-opacity-10 text-info';
+    }
+    actionBadge.innerText = action;
+
+    const modal = new bootstrap.Modal(document.getElementById('auditDetailModal'));
+    modal.show();
+}
+</script>
 {% endblock %}

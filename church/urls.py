@@ -73,6 +73,7 @@ urlpatterns = [
     path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
     # Audit Logs
     path('audit-logs/', views.audit_log_list, name='audit_log_list'),
+    path('audit-logs/export-csv/', views.export_audit_logs_csv, name='export_audit_logs_csv'),
 
     # Contact & Email Verification
     path('verify/<str:entity_type>/<path:pk>/<str:verify_type>/send/', views.send_verification_code, name='send_verification_code'),

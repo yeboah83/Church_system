@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from church.models import (
     Department, Member, Visitor, AttendanceSession, AttendanceRecord,
-    Event, FinanceTransaction, Sermon, Announcement
+    Event, FinanceTransaction, Sermon, Announcement, AuditLog
 )
 
 User = get_user_model()
@@ -14,6 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # 1. Clear existing data to avoid duplicates
         self.stdout.write("Clearing existing data...")
+        AuditLog.objects.all().delete()
         AttendanceRecord.objects.all().delete()
         AttendanceSession.objects.all().delete()
         Member.objects.all().delete()
@@ -226,4 +227,78 @@ class Command(BaseCommand):
             author=pastor
         )
 
-        self.stdout.write(self.style.SUCCESS("Database seeded successfully!"))
+        # 11. Create Comprehensive Audit Logs
+        self.stdout.write("Creating audit & security logs...")
+        now = datetime.datetime.now()
+        ip_addresses = ['192.168.1.105', '192.168.1.120', '10.0.4.15', '127.0.0.1', '197.251.140.22']
+
+        mock_logs = [
+            # Authentication events
+            (super_admin, 'LOGIN', 'Authentication', "User 'admin' (Super Admin) logged in successfully", now - datetime.timedelta(minutes=15), ip_addresses[0]),
+            (pastor, 'LOGIN', 'Authentication', "User 'pastor' (Pastor) logged in successfully", now - datetime.timedelta(hours=2, minutes=30), ip_addresses[1]),
+            (secretary, 'LOGIN', 'Authentication', "User 'secretary' (Secretary) logged in successfully", now - datetime.timedelta(hours=4), ip_addresses[2]),
+            (finance, 'LOGIN', 'Authentication', "User 'finance' (Finance Officer) logged in successfully", now - datetime.timedelta(hours=6), ip_addresses[3]),
+            (None, 'LOGIN', 'Authentication', "Failed login attempt for username 'admin_hacker' from unrecognized device", now - datetime.timedelta(hours=8), ip_addresses[4]),
+            (None, 'LOGIN', 'Authentication', "Failed login attempt for username 'pastor' (Incorrect password - attempt 1/3)", now - datetime.timedelta(hours=10), ip_addresses[4]),
+            (None, 'LOGIN', 'Authentication', "User 'unknown_guest' locked out after 3 failed login attempts", now - datetime.timedelta(days=1, hours=2), ip_addresses[4]),
+            (secretary, 'LOGOUT', 'Authentication', "User 'secretary' logged out", now - datetime.timedelta(days=1, hours=5), ip_addresses[2]),
+            
+            # Security & Access Control events
+            (choir_leader, 'ACCESS_DENIED', 'Security', "Unauthorized access attempt to '/finance/' by user 'choir_leader' (Role: Department Leader)", now - datetime.timedelta(hours=1, minutes=45), ip_addresses[1]),
+            (youth_leader, 'ACCESS_DENIED', 'Security', "Unauthorized access attempt to '/users/' by user 'youth_leader' (Role: Department Leader)", now - datetime.timedelta(days=1, hours=3), ip_addresses[2]),
+            (super_admin, 'SECURITY', 'User Management', "Changed password for user account 'secretary'", now - datetime.timedelta(days=2, hours=1), ip_addresses[0]),
+            (super_admin, 'SECURITY', 'User Management', "Updated role permissions for user 'finance' to 'Finance Officer'", now - datetime.timedelta(days=3), ip_addresses[0]),
+
+            # Member Management operations
+            (secretary, 'CREATE', 'Members', "Registered member 'Grace Osei' (ID: RACI26/004)", now - datetime.timedelta(hours=3, minutes=10), ip_addresses[2]),
+            (secretary, 'UPDATE', 'Members', "Updated member profile for 'John Doe' (ID: RACI26/001)", now - datetime.timedelta(hours=5), ip_addresses[2]),
+            (pastor, 'UPDATE', 'Members', "Assigned cell group 'Beta Cell' to member 'Jane Smith'", now - datetime.timedelta(days=1, hours=6), ip_addresses[1]),
+            (super_admin, 'DELETE', 'Members', "Deleted member record for 'Test User' (ID: RACI26/999)", now - datetime.timedelta(days=4), ip_addresses[0]),
+            (secretary, 'EXPORT', 'Members', "Exported member directory to Excel (.xlsx)", now - datetime.timedelta(hours=2), ip_addresses[2]),
+            (pastor, 'EXPORT', 'Members', "Exported member directory to PDF (.pdf)", now - datetime.timedelta(days=1, hours=4), ip_addresses[1]),
+            (secretary, 'EXPORT', 'Members', "Downloaded digital member ID card for 'John Doe' (ID: RACI26/001)", now - datetime.timedelta(days=2, hours=3), ip_addresses[2]),
+
+            # Visitor Management operations
+            (secretary, 'CREATE', 'Visitors', "Registered visitor 'Emmanuel Boateng' (ID: VIS26/003)", now - datetime.timedelta(hours=4, minutes=20), ip_addresses[2]),
+            (secretary, 'UPDATE', 'Visitors', "Updated visitor profile for 'Charles Owusu' (ID: VIS26/001)", now - datetime.timedelta(days=1, hours=8), ip_addresses[2]),
+            (super_admin, 'DELETE', 'Visitors', "Deleted visitor record for 'Old Visitor'", now - datetime.timedelta(days=5), ip_addresses[0]),
+
+            # Finance Management operations
+            (finance, 'CREATE', 'Finance', "Logged Income of GHS 1500.00 (Thanksgiving)", now - datetime.timedelta(days=1, hours=1), ip_addresses[3]),
+            (finance, 'CREATE', 'Finance', "Logged Expense of GHS 4500.00 (Salaries)", now - datetime.timedelta(days=2, hours=2), ip_addresses[3]),
+            (finance, 'UPDATE', 'Finance', "Updated transaction #14 (Expense - GHS 250.00 Utilities)", now - datetime.timedelta(days=3, hours=5), ip_addresses[3]),
+            (finance, 'EXPORT', 'Finance', "Exported financial statement report in EXCEL format", now - datetime.timedelta(days=1, hours=9), ip_addresses[3]),
+            (finance, 'EXPORT', 'Finance', "Exported financial statement report in PDF format", now - datetime.timedelta(days=3, hours=1), ip_addresses[3]),
+
+            # Attendance operations
+            (secretary, 'CREATE', 'Attendance', "Created attendance session 'Prayer Meeting' for today", now - datetime.timedelta(hours=1), ip_addresses[2]),
+            (secretary, 'UPDATE', 'Attendance', "Recorded attendance for 'Prayer Service' on today", now - datetime.timedelta(minutes=45), ip_addresses[2]),
+            (None, 'CREATE', 'Attendance', "Self check-in completed for member 'John Doe' in 'Prayer Meeting'", now - datetime.timedelta(minutes=30), ip_addresses[0]),
+            (None, 'CREATE', 'Attendance', "Self check-in completed for guest 'Emmanuel Boateng' in 'Prayer Meeting'", now - datetime.timedelta(minutes=25), ip_addresses[0]),
+
+            # Department, Sermon, Event & Announcement operations
+            (pastor, 'CREATE', 'Departments', "Created department 'Protocol'", now - datetime.timedelta(days=4, hours=10), ip_addresses[1]),
+            (pastor, 'UPDATE', 'Departments', "Updated department 'Choir' leadership assignment", now - datetime.timedelta(days=2, hours=11), ip_addresses[1]),
+            (pastor, 'CREATE', 'Sermons', "Added sermon 'Walking in Covenant Blessings' by Pastor Anim", now - datetime.timedelta(days=7), ip_addresses[1]),
+            (pastor, 'CREATE', 'Events', "Created event 'Annual Youth Conference 2026' scheduled for 2026-08-20", now - datetime.timedelta(days=3, hours=7), ip_addresses[1]),
+            (pastor, 'CREATE', 'Announcements', "Published announcement 'Church Building Fund Contribution Notice'", now - datetime.timedelta(days=2, hours=4), ip_addresses[1]),
+
+            # Verification operations
+            (super_admin, 'UPDATE', 'Verification', "Generated email verification code for user 'pastor'", now - datetime.timedelta(days=1, hours=7), ip_addresses[0]),
+            (pastor, 'VERIFY', 'Verification', "Successfully verified email for user 'pastor'", now - datetime.timedelta(days=1, hours=6), ip_addresses[1]),
+            (secretary, 'UPDATE', 'Verification', "Generated phone verification code for member 'Jane Smith'", now - datetime.timedelta(days=2, hours=5), ip_addresses[2]),
+        ]
+
+        for user, act_type, mod, desc, ts, ip in mock_logs:
+            user_disp = user.username if user else 'System/Anonymous'
+            AuditLog.objects.create(
+                user=user,
+                user_display=user_disp,
+                action_type=act_type,
+                module=mod,
+                description=desc,
+                timestamp=ts,
+                ip_address=ip
+            )
+
+        self.stdout.write(self.style.SUCCESS("Database seeded successfully with comprehensive data and audit logs!"))

@@ -318,6 +318,10 @@ class AuditLog(models.Model):
         ('LOGIN', 'Login'),
         ('LOGOUT', 'Logout'),
         ('EXPORT', 'Export'),
+        ('SECURITY', 'Security Alert'),
+        ('ACCESS_DENIED', 'Access Denied'),
+        ('VERIFY', 'Verification'),
+        ('VIEW', 'View'),
     )
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
     user_display = models.CharField(max_length=150, default='System')

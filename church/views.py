@@ -2,6 +2,7 @@ import datetime
 import random
 import io
 import base64
+import csv
 from decimal import Decimal
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
@@ -327,6 +328,7 @@ def visitor_create(request):
         form = VisitorForm(request.POST)
         if form.is_valid():
             v = form.save()
+            log_activity(request, 'CREATE', 'Visitors', f"Registered visitor '{v.name}' (ID: {v.visitor_id})")
             messages.success(request, f"Visitor '{v.name}' registered successfully with ID: {v.visitor_id}")
             return redirect('visitor_list')
     else:
@@ -342,6 +344,7 @@ def visitor_update(request, pk):
         form = VisitorForm(request.POST, instance=visitor)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'Visitors', f"Updated visitor profile for '{visitor.name}' (ID: {visitor.visitor_id})")
             messages.success(request, f"Visitor '{visitor.name}' updated successfully.")
             return redirect('visitor_list')
     else:
@@ -356,6 +359,7 @@ def visitor_delete(request, pk):
     if request.method == 'POST':
         name = visitor.name
         visitor.delete()
+        log_activity(request, 'DELETE', 'Visitors', f"Deleted visitor record for '{name}' (ID: {pk})")
         messages.success(request, f"Visitor '{name}' has been deleted.")
         return redirect('visitor_list')
     return render(request, 'confirm_delete.html', {'object': visitor, 'type': 'Visitor', 'cancel_url': 'visitor_list'})
@@ -381,6 +385,7 @@ def attendance_session_create(request):
             active_members = Member.objects.filter(status='Active')
             for m in active_members:
                 AttendanceRecord.objects.create(session=session, member=m, status='Absent')
+            log_activity(request, 'CREATE', 'Attendance', f"Created attendance session '{session.service_type}' for {session.date}")
             messages.success(request, f"Attendance session for {session.service_type} on {session.date} created. Please mark attendance.")
             return redirect('attendance_session_detail', pk=session.pk)
     else:
@@ -419,6 +424,7 @@ def attendance_session_detail(request, pk):
                 if v:
                     AttendanceRecord.objects.create(session=session, visitor=v, status='Present')
                     
+        log_activity(request, 'UPDATE', 'Attendance', f"Recorded attendance for '{session.service_type}' on {session.date}")
         messages.success(request, "Attendance logged successfully.")
         return redirect('attendance_session_detail', pk=session.pk)
 
@@ -514,6 +520,7 @@ def attendance_self_checkin(request, pk):
                         rec.save()
                     success = True
                     message = f"Welcome, {member.full_name}! Your attendance for {session.service_type} on {session.date} has been recorded as PRESENT."
+                    log_activity(request, 'CREATE', 'Attendance', f"Self check-in completed for member '{member.full_name}' in '{session.service_type}'")
                 else:
                     error = f"No member found matching '{identifier}'. Please check your Membership ID (e.g. RACI26/001) or register as a guest."
         
@@ -540,6 +547,7 @@ def attendance_self_checkin(request, pk):
                 visitor = vis
                 success = True
                 message = f"Welcome, {vis.name}! Your attendance as a guest for {session.service_type} has been recorded as PRESENT."
+                log_activity(request, 'CREATE', 'Attendance', f"Self check-in completed for guest '{vis.name}' in '{session.service_type}'")
 
     all_members = Member.objects.filter(status='Active').order_by('full_name')
 
@@ -569,7 +577,8 @@ def department_create(request):
     if request.method == 'POST':
         form = DepartmentForm(request.POST)
         if form.is_valid():
-            form.save()
+            dept = form.save()
+            log_activity(request, 'CREATE', 'Departments', f"Created department '{dept.name}'")
             messages.success(request, "Department created successfully.")
             return redirect('department_list')
     else:
@@ -585,6 +594,7 @@ def department_update(request, pk):
         form = DepartmentForm(request.POST, instance=dept)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'Departments', f"Updated department '{dept.name}'")
             messages.success(request, f"Department '{dept.name}' updated successfully.")
             return redirect('department_list')
     else:
@@ -775,6 +785,7 @@ def event_create(request):
         form = EventForm(request.POST)
         if form.is_valid():
             ev = form.save()
+            log_activity(request, 'CREATE', 'Events', f"Created event '{ev.event_name}' scheduled for {ev.date}")
             messages.success(request, f"Event '{ev.event_name}' created successfully.")
             return redirect('event_list')
     else:
@@ -790,6 +801,7 @@ def event_update(request, pk):
         form = EventForm(request.POST, instance=ev)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'Events', f"Updated event '{ev.event_name}'")
             messages.success(request, f"Event '{ev.event_name}' updated successfully.")
             return redirect('event_list')
     else:
@@ -804,6 +816,7 @@ def event_delete(request, pk):
     if request.method == 'POST':
         name = ev.event_name
         ev.delete()
+        log_activity(request, 'DELETE', 'Events', f"Deleted event '{name}'")
         messages.success(request, f"Event '{name}' deleted successfully.")
         return redirect('event_list')
     return render(request, 'confirm_delete.html', {'object': ev, 'type': 'Event', 'cancel_url': 'event_list'})
@@ -826,6 +839,7 @@ def announcement_create(request):
             ann = form.save(commit=False)
             ann.author = request.user
             ann.save()
+            log_activity(request, 'CREATE', 'Announcements', f"Published announcement '{ann.title}'")
             messages.success(request, "Announcement published.")
             return redirect('dashboard')
     else:
@@ -841,6 +855,7 @@ def announcement_update(request, pk):
         form = AnnouncementForm(request.POST, instance=ann)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'Announcements', f"Updated announcement '{ann.title}'")
             messages.success(request, "Announcement updated.")
             return redirect('announcement_list')
     else:
@@ -855,6 +870,7 @@ def announcement_delete(request, pk):
     if request.method == 'POST':
         title = ann.title
         ann.delete()
+        log_activity(request, 'DELETE', 'Announcements', f"Deleted announcement '{title}'")
         messages.success(request, f"Announcement '{title}' deleted.")
         return redirect('announcement_list')
     return render(request, 'confirm_delete.html', {'object': ann, 'type': 'Announcement', 'cancel_url': 'announcement_list'})
@@ -912,6 +928,7 @@ def export_members_excel(request):
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = 'attachment; filename="church_members_list.xlsx"'
     wb.save(response)
+    log_activity(request, 'EXPORT', 'Members', "Exported member directory to Excel (.xlsx)")
     return response
 
 
@@ -969,6 +986,7 @@ def export_members_pdf(request):
     story.append(t)
     doc.build(story)
     buffer.seek(0)
+    log_activity(request, 'EXPORT', 'Members', "Exported member directory to PDF (.pdf)")
     return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': 'attachment; filename="members_directory.pdf"'})
 
 
@@ -1064,6 +1082,7 @@ def download_member_card_pdf(request, pk):
     p.save()
     
     buffer.seek(0)
+    log_activity(request, 'EXPORT', 'Members', f"Downloaded digital member ID card for '{member.full_name}' (ID: {member.membership_id})")
     return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="member_card_{member.membership_id}.pdf"'})
 
 
@@ -1109,6 +1128,7 @@ def export_finance_report(request):
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = 'attachment; filename="financial_transactions.xlsx"'
         wb.save(response)
+        log_activity(request, 'EXPORT', 'Finance', "Exported financial statement report in EXCEL format")
         return response
 
     elif format_type == 'pdf':
@@ -1170,6 +1190,7 @@ def export_finance_report(request):
         story.append(t)
         doc.build(story)
         buffer.seek(0)
+        log_activity(request, 'EXPORT', 'Finance', "Exported financial statement report in PDF format")
         return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': 'attachment; filename="financial_statement.pdf"'})
 
     raise Http404("Invalid format requested.")
@@ -1191,6 +1212,7 @@ def user_create(request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
+            log_activity(request, 'CREATE', 'User Management', f"Created user account '{user.username}' (Role: {user.role})")
             messages.success(request, f"User '{user.username}' created successfully!")
             return redirect('user_list')
     else:
@@ -1206,6 +1228,7 @@ def user_update(request, pk):
         form = CustomUserUpdateForm(request.POST, instance=target_user)
         if form.is_valid():
             form.save()
+            log_activity(request, 'UPDATE', 'User Management', f"Updated user profile '{target_user.username}' (Role: {target_user.role})")
             messages.success(request, f"User '{target_user.username}' updated successfully.")
             return redirect('user_list')
     else:
@@ -1227,6 +1250,7 @@ def user_change_password(request, pk):
             new_pass = form.cleaned_data['new_password']
             target_user.set_password(new_pass)
             target_user.save()
+            log_activity(request, 'SECURITY', 'User Management', f"Changed password for user account '{target_user.username}'")
             messages.success(request, f"Password for '{target_user.username}' changed successfully.")
             return redirect('user_list')
     else:
@@ -1248,6 +1272,7 @@ def user_delete(request, pk):
     if request.method == 'POST':
         username = target_user.username
         target_user.delete()
+        log_activity(request, 'DELETE', 'User Management', f"Deleted user account '{username}' (ID: {pk})")
         messages.success(request, f"User '{username}' has been deleted.")
         return redirect('user_list')
     
@@ -1264,14 +1289,17 @@ def audit_log_list(request):
     query = request.GET.get('q', '').strip()
     module_filter = request.GET.get('module', '').strip()
     action_filter = request.GET.get('action', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
 
-    logs = AuditLog.objects.all()
+    logs = AuditLog.objects.all().select_related('user')
 
     if query:
         logs = logs.filter(
             Q(description__icontains=query) |
             Q(user_display__icontains=query) |
-            Q(ip_address__icontains=query)
+            Q(ip_address__icontains=query) |
+            Q(module__icontains=query)
         )
 
     if module_filter:
@@ -1280,19 +1308,100 @@ def audit_log_list(request):
     if action_filter:
         logs = logs.filter(action_type=action_filter)
 
-    modules = AuditLog.objects.values_list('module', flat=True).distinct()
-    actions = AuditLog.objects.values_list('action_type', flat=True).distinct()
+    if date_from:
+        logs = logs.filter(timestamp__date__gte=date_from)
+
+    if date_to:
+        logs = logs.filter(timestamp__date__lte=date_to)
+
+    total_count = logs.count()
+    today = timezone.now().date()
+    today_logs_count = logs.filter(timestamp__date=today).count()
+    security_alerts_count = logs.filter(
+        Q(action_type__in=['SECURITY', 'ACCESS_DENIED']) | 
+        Q(description__icontains='lock') | 
+        Q(description__icontains='blocked')
+    ).count()
+    failed_logins_count = logs.filter(
+        Q(description__icontains='failed') | 
+        Q(description__icontains='blocked') | 
+        Q(description__icontains='locked')
+    ).count()
+    exports_count = logs.filter(action_type='EXPORT').count()
+
+    all_modules = AuditLog.objects.values_list('module', flat=True).distinct()
+    all_actions = AuditLog.objects.values_list('action_type', flat=True).distinct()
 
     context = {
-        'logs': logs[:250],
+        'logs': logs[:300],
         'query': query,
         'module_filter': module_filter,
         'action_filter': action_filter,
-        'modules': sorted([m for m in set(modules) if m]),
-        'actions': sorted([a for a in set(actions) if a]),
-        'total_count': logs.count(),
+        'date_from': date_from,
+        'date_to': date_to,
+        'modules': sorted([m for m in set(all_modules) if m]),
+        'actions': sorted([a for a in set(all_actions) if a]),
+        'total_count': total_count,
+        'today_logs_count': today_logs_count,
+        'security_alerts_count': security_alerts_count,
+        'failed_logins_count': failed_logins_count,
+        'exports_count': exports_count,
     }
     return render(request, 'audit_logs/audit_log_list.html', context)
+
+
+@login_required
+@role_required(['Super Admin', 'Pastor'])
+def export_audit_logs_csv(request):
+    query = request.GET.get('q', '').strip()
+    module_filter = request.GET.get('module', '').strip()
+    action_filter = request.GET.get('action', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    logs = AuditLog.objects.all().select_related('user')
+
+    if query:
+        logs = logs.filter(
+            Q(description__icontains=query) |
+            Q(user_display__icontains=query) |
+            Q(ip_address__icontains=query) |
+            Q(module__icontains=query)
+        )
+
+    if module_filter:
+        logs = logs.filter(module=module_filter)
+
+    if action_filter:
+        logs = logs.filter(action_type=action_filter)
+
+    if date_from:
+        logs = logs.filter(timestamp__date__gte=date_from)
+
+    if date_to:
+        logs = logs.filter(timestamp__date__lte=date_to)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="system_audit_logs_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Log ID', 'Timestamp', 'User', 'User Role', 'Action Type', 'Module', 'Description', 'IP Address'])
+
+    for log in logs:
+        user_role = log.user.role if log.user else 'System/Guest'
+        writer.writerow([
+            log.id,
+            log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            log.user_display,
+            user_role,
+            log.action_type,
+            log.module,
+            log.description,
+            log.ip_address or 'N/A'
+        ])
+
+    log_activity(request, 'EXPORT', 'Audit Logs', f"Exported {logs.count()} activity audit log records to CSV format")
+    return response
 
 
 # --- CONTACT & EMAIL VERIFICATION ---
